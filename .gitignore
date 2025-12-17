@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+*.log
+logs/
+data/maintenance-state.json
+data/restart-history.json
+.DS_Store
+*.swp
+*.swo
+~*

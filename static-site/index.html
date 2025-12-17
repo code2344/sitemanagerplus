@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SiteManager+ - Demo Site</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>SiteManager+</h1>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/about.html">About</a></li>
+                <li><a href="/admin">Admin Panel</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="hero">
+            <h2>Welcome to SiteManager+</h2>
+            <p>Production-grade, ultra fault-tolerant static website server</p>
+        </section>
+
+        <section class="features">
+            <h3>Key Features</h3>
+            <ul>
+                <li>✅ Multi-worker cluster with automatic recovery</li>
+                <li>✅ Zero-downtime graceful rolling restarts</li>
+                <li>✅ Self-healing watchdog system</li>
+                <li>✅ Persistent maintenance mode</li>
+                <li>✅ Admin & ops control panels</li>
+                <li>✅ Email alerts via Resend</li>
+                <li>✅ Filesystem hot-reload</li>
+                <li>✅ Memory-efficient compression</li>
+                <li>✅ Intelligent caching headers</li>
+            </ul>
+        </section>
+
+        <section class="docs">
+            <h3>Quick Start</h3>
+            <pre><code># Install dependencies
+npm install
+
+# Create .env from example
+cp .env.example .env
+
+# Add your HTML files to ./website directory
+
+# Start the server
+npm start</code></pre>
+
+            <h3>Admin Panel</h3>
+            <p>Access the admin panel at <a href="/admin">/admin</a></p>
+            <p><strong>Default Credentials:</strong></p>
+            <ul>
+                <li>Username: <code>admin</code></li>
+                <li>Password: <code>changeme123</code></li>
+            </ul>
+
+            <h3>Maintenance Panel</h3>
+            <p>Access the maintenance panel at <a href="/maintenance">/maintenance</a></p>
+            <p><strong>Default Credentials:</strong></p>
+            <ul>
+                <li>Username: <code>ops</code></li>
+                <li>Password: <code>changeme456</code></li>
+            </ul>
+
+            <h3>Configuration</h3>
+            <ol>
+                <li>Copy <code>.env.example</code> to <code>.env</code></li>
+                <li>Update configuration values as needed</li>
+                <li>Restart the server (rolling restart triggered automatically)</li>
+            </ol>
+
+            <h3>Environment Variables</h3>
+            <ul>
+                <li><code>PORT</code> - Server port (default: 3000)</li>
+                <li><code>STATIC_SITE_DIR</code> - Static files directory</li>
+                <li><code>WORKER_COUNT</code> - Number of worker processes</li>
+                <li><code>ADMIN_USERNAME</code> - Admin username</li>
+                <li><code>ADMIN_PASSWORD</code> - Admin password</li>
+                <li><code>RESEND_API_KEY</code> - Resend email API key</li>
+            </ul>
+        </section>
+
+        <section class="architecture">
+            <h3>System Architecture</h3>
+            <p>SiteManager+ uses a cluster-based architecture:</p>
+            <ol>
+                <li><strong>Master Process:</strong> Manages workers, watches files, enforces health checks</li>
+                <li><strong>Worker Processes:</strong> Handle HTTP requests and serve static files</li>
+                <li><strong>Watchdog:</strong> Monitors worker health and automatically recovers from failures</li>
+                <li><strong>Maintenance Mode:</strong> Persisted system-wide, bypassed by admin routes</li>
+            </ol>
+        </section>
+
+        <section class="api">
+            <h3>API Endpoints</h3>
+            
+            <h4>Public Routes</h4>
+            <ul>
+                <li><code>GET /</code> - Serve static files</li>
+                <li><code>GET /admin</code> - Admin panel (requires auth)</li>
+                <li><code>GET /maintenance</code> - Ops panel (requires auth)</li>
+            </ul>
+
+            <h4>Admin Routes (requires admin auth)</h4>
+            <ul>
+                <li><code>GET /admin</code> - Dashboard</li>
+                <li><code>POST /admin/maintenance/toggle</code> - Toggle maintenance</li>
+                <li><code>GET /admin/status</code> - System status</li>
+                <li><code>GET /admin/workers</code> - Worker details</li>
+                <li><code>POST /admin/logs</code> - Get logs</li>
+            </ul>
+
+            <h4>Maintenance Routes (requires ops auth)</h4>
+            <ul>
+                <li><code>GET /maintenance</code> - Dashboard</li>
+                <li><code>POST /maintenance/restart/rolling</code> - Rolling restart</li>
+                <li><code>POST /maintenance/restart/worker/:id</code> - Restart worker</li>
+                <li><code>GET /maintenance/workers</code> - Worker status</li>
+                <li><code>GET /maintenance/logs</code> - View logs</li>
+            </ul>
+        </section>
+
+        <section class="footer">
+            <p><strong>SiteManager+ v1.0.0</strong> - Ultra Fault-Tolerant Static Website Server</p>
+            <p>For updates, check the logs at <code>./logs/</code></p>
+        </section>
+    </main>
+
+    <script src="/script.js"></script>
+</body>
+</html>

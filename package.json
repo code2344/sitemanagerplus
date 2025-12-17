@@ -1,0 +1,38 @@
+{
+  "name": "sitemanager-plus",
+  "version": "1.0.0",
+  "description": "Production-grade, ultra fault-tolerant Node.js server for serving static websites with zero-downtime deployments",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "sitemanager": "bin/cli.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "NODE_ENV=development node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cli": "node bin/cli.js"
+  },
+  "keywords": [
+    "static-server",
+    "high-availability",
+    "fault-tolerant",
+    "cluster",
+    "zero-downtime"
+  ],
+  "author": "SiteManager+",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "compression": "^1.7.4",
+    "resend": "^3.0.0",
+    "chokidar": "^3.5.3",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "uuid": "^9.0.1",
+    "node-fetch": "^2.6.11",
+    "node-cron": "^3.0.2",
+    "socket.io": "^4.5.4"
+  },
+  "devDependencies": {}
+}

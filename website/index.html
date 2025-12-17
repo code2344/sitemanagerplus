@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Your Site</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h1 {
+            font-size: 1.5rem;
+        }
+
+        .navbar ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+
+        .navbar a:hover {
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        main {
+            min-height: 100vh;
+        }
+
+        section {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        section h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        section h3 {
+            color: #764ba2;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            border-left: none;
+            margin: 0;
+            padding: 4rem 1.5rem;
+        }
+
+        .hero h2 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            color: #d32f2f;
+        }
+
+        pre {
+            background: white;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+        }
+
+        pre code {
+            color: #333;
+            padding: 0;
+            background: none;
+        }
+
+        ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        li {
+            margin: 0.5rem 0;
+        }
+
+        a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            background: #333;
+            color: white;
+            padding: 2rem;
+            border-left: none;
+        }
+
+        .admin-links {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .admin-links a {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .admin-links a:hover {
+            background: #764ba2;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            .navbar .container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .navbar ul {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .hero h2 {
+                font-size: 1.8rem;
+            }
+
+            .admin-links {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>Your Site</h1>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/admin">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <h2>Welcome to Your Website</h2>
+            <p>Served by SiteManager+ - Ultra Fault-Tolerant Static Website Server</p>
+        </section>
+
+        <div class="container">
+            <section>
+                <h2>Getting Started</h2>
+                <p>Your website is now running on SiteManager+! This is the default index.html file.</p>
+                
+                <h3>Replace This Content</h3>
+                <p>Add your own HTML files to the <code>/website</code> directory and they will be automatically served. Just refresh your browser or restart the server.</p>
+
+                <h3>File Structure</h3>
+                <pre><code>website/
+  ├── index.html (this file)
+  ├── style.css
+  ├── script.js
+  └── ... other files ...</code></pre>
+
+                <h3>Admin & Operations Panels</h3>
+                <p>SiteManager+ provides two control panels:</p>
+                <div class="admin-links">
+                    <a href="/admin">Admin Panel</a>
+                    <a href="/maintenance">Ops Panel</a>
+                </div>
+
+                <h3>Default Credentials</h3>
+                <ul>
+                    <li><strong>Admin:</strong> username <code>admin</code> / password <code>changeme123</code></li>
+                    <li><strong>Ops:</strong> username <code>ops</code> / password <code>changeme456</code></li>
+                </ul>
+                <p style="color: #d32f2f; margin-top: 1rem;"><strong>⚠️ Change these immediately in your .env file!</strong></p>
+
+                <h3>Features</h3>
+                <ul>
+                    <li>✅ Multi-worker cluster with automatic recovery</li>
+                    <li>✅ Zero-downtime graceful rolling restarts</li>
+                    <li>✅ Self-healing watchdog system</li>
+                    <li>✅ Persistent maintenance mode</li>
+                    <li>✅ Real-time monitoring and control</li>
+                    <li>✅ Automatic hot-reload on file changes</li>
+                    <li>✅ Email alerts via Resend</li>
+                    <li>✅ Intelligent caching and compression</li>
+                </ul>
+
+                <h3>Configuration</h3>
+                <p>Edit the <code>.env</code> file in the root directory to configure:</p>
+                <ul>
+                    <li>Server port (default: 3000)</li>
+                    <li>Worker count (default: CPU count / 2)</li>
+                    <li>Admin and ops credentials</li>
+                    <li>Email alerts via Resend API</li>
+                    <li>Memory thresholds and health checks</li>
+                </ul>
+
+                <h3>Next Steps</h3>
+                <ol>
+                    <li>Edit or delete this index.html file</li>
+                    <li>Add your own HTML, CSS, and JavaScript files to the <code>/website</code> directory</li>
+                    <li>Refresh your browser - changes are automatically detected!</li>
+                    <li>Visit <a href="/admin">/admin</a> to monitor your site</li>
+                    <li>Visit <a href="/maintenance">/maintenance</a> for advanced operations</li>
+                </ol>
+            </section>
+        </div>
+    </main>
+
+    <div class="footer">
+        <p><strong>SiteManager+ v1.0.0</strong></p>
+        <p>Ultra Fault-Tolerant Static Website Server</p>
+        <p>Logs: <code>./logs/</code> | Config: <code>.env</code></p>
+    </div>
+</body>
+</html>

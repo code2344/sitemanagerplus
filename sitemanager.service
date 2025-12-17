@@ -1,0 +1,36 @@
+[Unit]
+Description=SiteManager+ - Ultra Fault-Tolerant Static Website Server
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sitemanager
+WorkingDirectory=/opt/sitemanagerplus
+EnvironmentFile=/etc/sitemanager/sitemanager.env
+ExecStart=/usr/bin/node /opt/sitemanagerplus/src/index.js
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Resource limits
+LimitNOFILE=65535
+LimitNPROC=32768
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sitemanager
+
+[Install]
+WantedBy=multi-user.target

@@ -15,25 +15,42 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { basicAuth, rateLimit } from '../utils/auth.js';
+import { sessionAuth, loginHandlers, rateLimit } from '../utils/auth.js';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { getMaintenanceManager } from '../maintenance/manager.js';
 
 export function createMaintenancePanel(cluster, watchdog) {
   const router = express.Router();
+  const uiDir = path.join(config.paths.src, 'panels', 'public', 'maintenance');
 
-  // All maintenance routes require authentication
-  router.use(basicAuth('maintenance'));
+  // Login routes (HTML form)
+  const { getLogin, postLogin, postLogout } = loginHandlers('maintenance', '/maintenance');
+  router.get('/login', getLogin);
+  router.post('/login', express.urlencoded({ extended: false }), postLogin);
+  router.post('/logout', postLogout);
+  router.get('/logout', postLogout);
+
+  // All maintenance routes require session or valid basic credentials
+  router.use(sessionAuth('maintenance', '/maintenance'));
 
   // Rate limit sensitive operations
   router.use(rateLimit(60000, 50)); // 50 requests per minute
+
+  // Serve static assets for the Maintenance UI
+  router.use('/assets', express.static(uiDir, { fallthrough: true }));
 
   /**
    * GET /maintenance - Maintenance panel dashboard
    */
   router.get('/', (req, res) => {
     try {
+      const wantsHtml = (req.headers.accept || '').includes('text/html');
+      if (wantsHtml && fs.existsSync(path.join(uiDir, 'index.html'))) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(fs.readFileSync(path.join(uiDir, 'index.html'), 'utf8'));
+      }
+
       const watchdogStatus = watchdog.getStatus();
       const maintenance = getMaintenanceManager();
       const workers = Object.values(cluster.workers).filter(w => w);

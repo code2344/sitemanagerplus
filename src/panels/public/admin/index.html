@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiteManager+ Admin</title>
+  <link rel="stylesheet" href="/admin/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SiteManager+ • Admin</div>
+    <nav class="nav">
+      <a href="/admin" class="active">Dashboard</a>
+      <a href="/admin/logs/list" target="_blank">Logs (JSON)</a>
+      <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main class="container">
+    <section class="grid">
+      <div class="card" id="systemCard">
+        <h2>System</h2>
+        <div class="kv"><span>Status</span><strong id="sysHealth">—</strong></div>
+        <div class="kv"><span>Uptime</span><strong id="sysUptime">—</strong></div>
+        <div class="kv"><span>Memory</span><strong id="sysMem">—</strong></div>
+        <div class="kv"><span>Workers</span><strong id="sysWorkers">—</strong></div>
+      </div>
+      <div class="card">
+        <h2>Maintenance Mode</h2>
+        <div class="kv"><span>Enabled</span><strong id="maintEnabled">—</strong></div>
+        <div class="kv"><span>Reason</span><strong id="maintReason">—</strong></div>
+        <div class="row">
+          <button class="btn" id="btnEnable">Enable</button>
+          <button class="btn outline" id="btnDisable">Disable</button>
+        </div>
+        <label>Reason</label>
+        <input id="reason" placeholder="Why are you enabling maintenance?" />
+        <label>Duration (minutes, optional)</label>
+        <input id="duration" type="number" min="1" placeholder="e.g. 15" />
+      </div>
+      <div class="card">
+        <h2>Recent Logs</h2>
+        <div class="row">
+          <input id="logFile" value="app.log" />
+          <input id="logLines" type="number" min="50" value="150" />
+          <button class="btn" id="btnFetchLogs">Fetch</button>
+        </div>
+        <pre class="logs" id="logs"></pre>
+      </div>
+    </section>
+  </main>
+  <script src="/admin/assets/app.js"></script>
+</body>
+</html>

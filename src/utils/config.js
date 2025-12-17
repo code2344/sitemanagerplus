@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import os from 'os';
 
 // Load environment variables
 dotenv.config();
@@ -32,9 +33,13 @@ const config = {
     username: process.env.ADMIN_USERNAME || 'admin',
     password: process.env.ADMIN_PASSWORD || 'changeme123',
   },
-  maintenance: {
+  // Ops (maintenance panel) credentials
+  maintenanceAuth: {
     username: process.env.MAINTENANCE_USERNAME || 'ops',
     password: process.env.MAINTENANCE_PASSWORD || 'changeme456',
+  },
+  auth: {
+    sessionSecret: process.env.SESSION_SECRET || '',
   },
 
   // Email/Alerts via Resend
@@ -47,7 +52,7 @@ const config = {
   // Cluster Configuration
   cluster: {
     // Number of worker processes (defaults to CPU count / 2, min 2, max 8 for stability)
-    workerCount: Math.min(8, Math.max(2, parseInt(process.env.WORKER_COUNT || '0', 10) || Math.ceil(require('os').cpus().length / 2))),
+    workerCount: Math.min(8, Math.max(2, parseInt(process.env.WORKER_COUNT || '0', 10) || Math.ceil(os.cpus().length / 2))),
     
     // Memory threshold per worker before marking unhealthy (MB)
     memoryThresholdMB: parseInt(process.env.MEMORY_THRESHOLD_MB || '256', 10),
@@ -117,6 +122,26 @@ function initializeConfig() {
   for (const dir of requiredDirs) {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  // Ensure a stable session secret for stateless auth across workers
+  if (!config.auth.sessionSecret) {
+    const secretFile = path.join(config.dataDir, 'session-secret');
+    try {
+      if (fs.existsSync(secretFile)) {
+        const s = fs.readFileSync(secretFile, 'utf8').trim();
+        if (s) config.auth.sessionSecret = s;
+      } else {
+        const random = Buffer.from(Array.from({ length: 32 }, () => Math.floor(Math.random() * 256))).toString('hex');
+        fs.writeFileSync(secretFile, random, 'utf8');
+        config.auth.sessionSecret = random;
+      }
+    } catch (e) {
+      // Fallback to ephemeral secret if disk unavailable
+      if (!config.auth.sessionSecret) {
+        config.auth.sessionSecret = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
     }
   }
 

@@ -10,12 +10,87 @@
 
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
+import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_ATTEMPTS = 10; // Max failed attempts
 
 // Track failed login attempts by IP
 const loginAttempts = new Map();
+
+// Default session lifetime: 2 hours
+const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+
+function parseCookies(req) {
+  const header = req.headers.cookie || '';
+  const pairs = header.split(';').map(c => c.trim()).filter(Boolean);
+  const cookies = {};
+  for (const p of pairs) {
+    const idx = p.indexOf('=');
+    if (idx > -1) {
+      const k = p.slice(0, idx);
+      const v = decodeURIComponent(p.slice(idx + 1));
+      cookies[k] = v;
+    }
+  }
+  return cookies;
+}
+
+function setSessionCookie(res, token, path = '/') {
+  const expires = new Date(Date.now() + SESSION_TTL_MS).toUTCString();
+  res.setHeader('Set-Cookie', `smplus_sid=${encodeURIComponent(token)}; Path=${path}; HttpOnly; SameSite=Lax; Expires=${expires}`);
+}
+
+function clearSessionCookie(res, path = '/') {
+  const expires = new Date(0).toUTCString();
+  res.setHeader('Set-Cookie', `smplus_sid=; Path=${path}; HttpOnly; SameSite=Lax; Expires=${expires}`);
+}
+
+// Stateless token: base64url(payload).base64url(hmac)
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function sign(data) {
+  return b64url(crypto.createHmac('sha256', config.auth.sessionSecret).update(data).digest());
+}
+
+function createToken(username, role) {
+  const payload = {
+    u: username,
+    r: role,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor((Date.now() + SESSION_TTL_MS) / 1000),
+    jti: uuidv4(),
+  };
+  const data = b64url(JSON.stringify(payload));
+  const mac = sign(data);
+  return `${data}.${mac}`;
+}
+
+function verifyToken(token) {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [data, mac] = parts;
+  const expected = sign(data);
+  const bMac = Buffer.from(mac);
+  const bExp = Buffer.from(expected);
+  if (bMac.length !== bExp.length) return null;
+  if (!crypto.timingSafeEqual(bMac, bExp)) return null;
+  try {
+    const json = JSON.parse(Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    if (json.exp && Date.now() / 1000 > json.exp) return null;
+    return { username: json.u, role: json.r };
+  } catch {
+    return null;
+  }
+}
+
+function destroySession(_sid) {
+  // Stateless: nothing to do server-side
+}
 
 /**
  * Check rate limit for login attempts
@@ -77,7 +152,7 @@ export function basicAuth(allowedRole = 'admin') {
 
     // Missing auth header
     if (!auth || !auth.startsWith('Basic ')) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="SiteManager+ Admin"');
+      // Do NOT send WWW-Authenticate to avoid browser Basic Auth prompt
       return res.status(401).json({ error: 'Unauthorized - missing credentials' });
     }
 
@@ -90,8 +165,8 @@ export function basicAuth(allowedRole = 'admin') {
       // Get allowed credentials based on role
       let allowedUsername, allowedPassword;
       if (allowedRole === 'maintenance') {
-        allowedUsername = config.maintenance.username;
-        allowedPassword = config.maintenance.password;
+        allowedUsername = config.maintenanceAuth.username;
+        allowedPassword = config.maintenanceAuth.password;
       } else {
         allowedUsername = config.admin.username;
         allowedPassword = config.admin.password;
@@ -172,4 +247,162 @@ export function rateLimit(windowMs = 60000, maxRequests = 100) {
 
     next();
   };
+}
+
+/**
+ * HTML login page generator
+ */
+function renderLoginPage(panelPath = '/', roleLabel = 'Admin', errorMsg = '') {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${roleLabel} Sign In</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:#0b1020;color:#e8eef9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .card{background:#121a33;border:1px solid #2a355a;border-radius:12px;max-width:360px;width:100%;padding:24px;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+    h1{font-size:20px;margin:0 0 16px}
+    label{display:block;font-size:13px;margin:10px 0 6px;color:#a9b5d9}
+    input{width:100%;padding:10px 12px;border:1px solid #3b4a79;border-radius:8px;background:#0b1020;color:#e8eef9}
+    input:focus{outline:none;border-color:#6e8cff;box-shadow:0 0 0 3px rgba(110,140,255,.15)}
+    .btn{width:100%;margin-top:16px;padding:10px 12px;background:#5a78ff;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+    .btn:hover{background:#4e68e0}
+    .hint{margin-top:12px;font-size:12px;color:#8fa0c9}
+    .error{background:#2a1a1a;color:#ffd6d6;border:1px solid #5a2a2a;padding:8px;border-radius:8px;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${roleLabel} Sign In</h1>
+    ${errorMsg ? `<div class="error">${errorMsg}</div>` : ''}
+    <form method="post" action="${panelPath}/login">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="btn" type="submit">Sign In</button>
+    </form>
+    <div class="hint">Access is restricted to authorized ${roleLabel.toLowerCase()}s.</div>
+  </div>
+  <script>window.history.replaceState(null,'',window.location.pathname)</script>
+  </body>
+</html>`;
+}
+
+/**
+ * Session-based auth middleware: checks cookie first, then Basic header (without prompting)
+ */
+export function sessionAuth(requiredRole = 'admin', panelPath = '/') {
+  return (req, res, next) => {
+    const cookies = parseCookies(req);
+    const sid = cookies.smplus_sid;
+    const payload = verifyToken(sid);
+
+    // Prefer a valid token
+    if (payload && payload.role === requiredRole) {
+      req.user = { username: payload.username, role: payload.role };
+      return next();
+    }
+
+    // Fallback: allow valid Basic header without sending challenge
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith('Basic ')) {
+      try {
+        const encoded = auth.slice(6);
+        const decoded = Buffer.from(encoded, 'base64').toString('utf-8');
+        const [username, password] = decoded.split(':');
+
+        let allowedUsername, allowedPassword;
+        if (requiredRole === 'maintenance') {
+          allowedUsername = config.maintenanceAuth.username;
+          allowedPassword = config.maintenanceAuth.password;
+        } else {
+          allowedUsername = config.admin.username;
+          allowedPassword = config.admin.password;
+        }
+
+        if (username === allowedUsername && password === allowedPassword) {
+          req.user = { username, role: requiredRole };
+          return next();
+        }
+      } catch (e) {
+        // ignore and fall through to login page
+      }
+    }
+
+    // Not authenticated: serve login page for HTML navigations
+    if ((req.headers.accept || '').includes('text/html') || req.method === 'GET') {
+      res.status(401);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      const roleLabel = requiredRole === 'maintenance' ? 'Ops' : 'Admin';
+      return res.send(renderLoginPage(panelPath, roleLabel));
+    }
+
+    // API request
+    return res.status(401).json({ error: 'Unauthorized' });
+  };
+}
+
+/**
+ * Handlers: login and logout for panel
+ */
+export function loginHandlers(requiredRole = 'admin', panelPath = '/') {
+  const roleLabel = requiredRole === 'maintenance' ? 'Ops' : 'Admin';
+
+  const getLogin = (req, res) => {
+    res.status(200);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    const err = typeof req.query?.e === 'string' && req.query.e ? 'Invalid username or password' : '';
+    res.send(renderLoginPage(panelPath, roleLabel, err));
+  };
+
+  const postLogin = (req, res) => {
+    try {
+      const { username, password } = req.body || {};
+
+      let allowedUsername, allowedPassword;
+      if (requiredRole === 'maintenance') {
+        allowedUsername = config.maintenanceAuth.username;
+        allowedPassword = config.maintenanceAuth.password;
+      } else {
+        allowedUsername = config.admin.username;
+        allowedPassword = config.admin.password;
+      }
+
+      const credentialsValid = username === allowedUsername && password === allowedPassword;
+      if (!credentialsValid) {
+        // Clear any existing bad session
+        clearSessionCookie(res, panelPath);
+        recordFailedAttempt(req.ip);
+        logger.warn('Panel login failed', { panelPath, role: requiredRole, ip: req.ip, attempted_username: username });
+        res.status(302);
+        res.setHeader('Location', `${panelPath}/login?e=1`);
+        return res.end();
+      }
+
+      // Success: create session and redirect to panel root
+      const token = createToken(username, requiredRole);
+      setSessionCookie(res, token, panelPath);
+      clearRateLimit(req.ip);
+      res.status(302);
+      res.setHeader('Location', panelPath + '/');
+      return res.end();
+    } catch (err) {
+      logger.error('Login error', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  const postLogout = (req, res) => {
+    const cookies = parseCookies(req);
+    const sid = cookies.smplus_sid;
+    destroySession(sid);
+    clearSessionCookie(res, panelPath);
+    res.status(302);
+    res.setHeader('Location', panelPath + '/login');
+    return res.end();
+  };
+
+  return { getLogin, postLogin, postLogout };
 }

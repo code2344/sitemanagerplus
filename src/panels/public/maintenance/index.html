@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiteManager+ Ops</title>
+  <link rel="stylesheet" href="/maintenance/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SiteManager+ • Ops</div>
+    <nav class="nav">
+      <a href="/maintenance" class="active">Dashboard</a>
+      <a href="#terminal">Terminal (disabled)</a>
+      <form method="post" action="/maintenance/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main class="container">
+    <section class="grid">
+      <div class="card">
+        <h2>Cluster</h2>
+        <div class="kv"><span>Workers</span><strong id="wCount">—</strong></div>
+        <div class="row">
+          <button class="btn" id="btnRolling">Rolling Restart</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Workers</h2>
+        <div id="workers"></div>
+      </div>
+      <div class="card">
+        <h2>Maintenance</h2>
+        <div class="kv"><span>Enabled</span><strong id="mEnabled">—</strong></div>
+        <div class="row">
+          <button class="btn" id="btnEnableMaint">Enable</button>
+          <button class="btn outline" id="btnDisableMaint">Disable</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Terminal</h2>
+        <p class="hint">Interactive terminal is disabled by default. To enable, install node-pty and set ENABLE_OPS_TERMINAL=1. I can wire this up for you when ready.</p>
+      </div>
+    </section>
+  </main>
+  <script src="/maintenance/assets/app.js"></script>
+</body>
+</html>

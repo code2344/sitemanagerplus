@@ -14,22 +14,39 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { basicAuth } from '../utils/auth.js';
+import { sessionAuth, loginHandlers } from '../utils/auth.js';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { getMaintenanceManager } from '../maintenance/manager.js';
 
 export function createAdminPanel(watchdog) {
   const router = express.Router();
+  const uiDir = path.join(config.paths.src, 'panels', 'public', 'admin');
 
-  // All admin routes require authentication
-  router.use(basicAuth('admin'));
+  // Login routes (HTML form)
+  const { getLogin, postLogin, postLogout } = loginHandlers('admin', '/admin');
+  router.get('/login', getLogin);
+  router.post('/login', express.urlencoded({ extended: false }), postLogin);
+  router.post('/logout', postLogout);
+  router.get('/logout', postLogout);
+
+  // All admin routes require session or valid basic credentials
+  router.use(sessionAuth('admin', '/admin'));
+
+  // Serve static assets for the Admin UI
+  router.use('/assets', express.static(uiDir, { fallthrough: true }));
 
   /**
    * GET /admin - Admin dashboard
    */
   router.get('/', (req, res) => {
     try {
+      const wantsHtml = (req.headers.accept || '').includes('text/html');
+      if (wantsHtml && fs.existsSync(path.join(uiDir, 'index.html'))) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(fs.readFileSync(path.join(uiDir, 'index.html'), 'utf8'));
+      }
+
       const maintenance = getMaintenanceManager();
       const healthMonitor = watchdog.getHealthMonitor();
       const systemHealth = healthMonitor.getSystemHealth();

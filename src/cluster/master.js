@@ -13,11 +13,13 @@
 
 import cluster from 'cluster';
 import os from 'os';
+import tty from 'tty';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { Watchdog } from '../watchdog/coordinator.js';
 import { getMaintenanceManager } from '../maintenance/manager.js';
 import { createWorker } from './worker.js';
+import { InteractiveCLI } from '../cli/interactive.js';
 import {
   watchStaticSite,
   watchMaintenancePage,
@@ -27,7 +29,7 @@ import {
 /**
  * Master process controller
  */
-export function createMaster() {
+export async function createMaster() {
   logger.info('Master process starting', {
     pid: process.pid,
     nodeEnv: config.nodeEnv,
@@ -116,6 +118,33 @@ export function createMaster() {
   }
 
   /**
+   * Setup interactive CLI
+   * Runs in master process alongside HTTP server
+   */
+  async function setupInteractiveCLI() {
+    // Only setup CLI if we have a TTY (interactive terminal)
+    if (!tty.isatty(process.stdin.fd) && process.argv[2] !== '--cli') {
+      logger.debug('No TTY detected, skipping interactive CLI');
+      return;
+    }
+
+    try {
+      const cli = new InteractiveCLI(watchdog, {
+        autoClose: false,
+      });
+
+      // Start CLI in background (runs concurrently with HTTP server)
+      cli.start().catch(err => {
+        logger.error('CLI error', { error: err.message });
+      });
+
+      logger.info('Interactive CLI initialized');
+    } catch (err) {
+      logger.warn('Failed to initialize interactive CLI', { error: err.message });
+    }
+  }
+
+  /**
    * Graceful shutdown of master
    */
   async function gracefulShutdown(signal) {
@@ -183,6 +212,8 @@ export function createMaster() {
     port: config.port,
   });
 
+  // Initialize interactive CLI before spawning workers so logs are redirected
+  await setupInteractiveCLI();
   spawnWorkers();
   setupWatchers();
 

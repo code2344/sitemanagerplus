@@ -50,32 +50,46 @@ function safeLogToFile(logMessage, filename) {
 }
 
 /**
+ * Determine whether to also write to console.
+ * If CLI is active (sentinel file exists) or NO_CONSOLE_LOG is set, suppress console output.
+ */
+function shouldWriteConsole() {
+  try {
+    if (process.env.NO_CONSOLE_LOG === '1') return false;
+    const sentinel = path.join(logDir, '.cli-active');
+    return !fs.existsSync(sentinel);
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Logger object with methods for each log level
- * Each log is written to both file and console (in production, consider disabling console)
+ * Writes to file always; writes to console only when allowed by shouldWriteConsole().
  */
 const logger = {
   error(message, data = {}) {
     const logMessage = formatLogMessage(LOG_LEVELS.ERROR, message, data);
-    console.error(logMessage.trim());
+    if (shouldWriteConsole()) console.error(logMessage.trim());
     safeLogToFile(logMessage, 'error.log');
   },
 
   warn(message, data = {}) {
     const logMessage = formatLogMessage(LOG_LEVELS.WARN, message, data);
-    console.warn(logMessage.trim());
+    if (shouldWriteConsole()) console.warn(logMessage.trim());
     safeLogToFile(logMessage, 'app.log');
   },
 
   info(message, data = {}) {
     const logMessage = formatLogMessage(LOG_LEVELS.INFO, message, data);
-    console.log(logMessage.trim());
+    if (shouldWriteConsole()) console.log(logMessage.trim());
     safeLogToFile(logMessage, 'app.log');
   },
 
   debug(message, data = {}) {
     if (config.nodeEnv !== 'production') {
       const logMessage = formatLogMessage(LOG_LEVELS.DEBUG, message, data);
-      console.log(logMessage.trim());
+      if (shouldWriteConsole()) console.log(logMessage.trim());
       safeLogToFile(logMessage, 'debug.log');
     }
   },

@@ -62,12 +62,13 @@ export function createMaintenancePanel(cluster, watchdog) {
 
       const watchdogStatus = watchdog.getStatus();
       const maintenance = getMaintenanceManager();
-      const workers = Object.values(cluster.workers).filter(w => w);
+      const maintenanceState = maintenance?.getState() || { enabled: false };
+      const workers = Object.values(cluster.workers || {}).filter(w => w && w.process);
 
       res.json({
         status: 'success',
-        watchdog: watchdogStatus,
-        maintenance: maintenance.getState(),
+        watchdog: watchdogStatus || {},
+        maintenance: maintenanceState,
         workers: workers.map(w => ({
           id: w.id,
           pid: w.process.pid,

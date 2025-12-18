@@ -236,16 +236,16 @@ export class Watchdog {
     try {
       logger.info('Starting graceful rolling restart', {
         reason,
-        workerCount: Object.keys(this.cluster.workers).length,
+        workerCount: Object.keys(this.cluster.workers || {}).length,
       });
 
       await emailAlerts.alertRollingRestartStarted(
-        Object.keys(this.cluster.workers).length,
+        Object.keys(this.cluster.workers || {}).length,
         reason
       );
 
       // Get list of workers to restart
-      const workers = Object.values(this.cluster.workers).filter(w => w);
+      const workers = Object.values(this.cluster.workers || {}).filter(w => w);
 
       for (const worker of workers) {
         await this.gracefullyRestartWorker(worker);

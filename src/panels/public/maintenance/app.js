@@ -5,24 +5,28 @@ async function getJSON(url) {
 }
 
 async function refresh() {
-  const data = await getJSON('/maintenance');
-  const workers = data.workers || [];
-  document.getElementById('wCount').textContent = workers.length;
-  const container = document.getElementById('workers');
-  container.innerHTML = '';
-  workers.forEach(w => {
-    const div = document.createElement('div');
-    div.className = 'kv';
-    div.innerHTML = `<span>Worker #${w.id} (pid ${w.pid})</span>
-      <span>
-        <button class="btn small" data-id="${w.id}" data-action="restart">Restart</button>
-        <button class="btn small outline" data-id="${w.id}" data-action="force">Force Kill</button>
-      </span>`;
-    container.appendChild(div);
-  });
+  try {
+    const data = await getJSON('/maintenance');
+    const workers = data?.workers || [];
+    document.getElementById('wCount').textContent = workers.length;
+    const container = document.getElementById('workers');
+    container.innerHTML = '';
+    workers.forEach(w => {
+      const div = document.createElement('div');
+      div.className = 'kv';
+      div.innerHTML = `<span>Worker #${w?.id} (pid ${w?.pid})</span>
+        <span>
+          <button class="btn small" data-id="${w?.id}" data-action="restart">Restart</button>
+          <button class="btn small outline" data-id="${w?.id}" data-action="force">Force Kill</button>
+        </span>`;
+      container.appendChild(div);
+    });
 
-  const m = data.maintenance || {};
-  document.getElementById('mEnabled').textContent = m.enabled ? 'Yes' : 'No';
+    const m = data?.maintenance || {};
+    document.getElementById('mEnabled').textContent = m?.enabled ? 'Yes' : 'No';
+  } catch (err) {
+    console.error('Refresh error:', err);
+  }
 }
 
 async function rollingRestart() {

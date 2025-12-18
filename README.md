@@ -110,7 +110,33 @@ sitemanagerplus/
   - Advanced logging and diagnostics
   - Force maintenance mode
 
-## ⚙️ Configuration (.env)
+### Interactive CLI
+- **Access**: Automatic in interactive terminal (`npm start`)
+- **Prompt**: `SiteManager+> `
+- **No TTY**: Use HTTP endpoints instead
+- **Commands**: `status`, `health`, `workers`, `restart`, `maintenance`, `logs`, `memory`, `config`, `help`, and more
+- **See**: [CLI-GUIDE.md](CLI-GUIDE.md) for detailed documentation
+
+---
+
+## 🎮 Quick CLI Examples
+
+```bash
+npm start
+# Once prompted:
+
+SiteManager+> status               # Current system status
+SiteManager+> health               # Health check
+SiteManager+> workers              # List workers
+SiteManager+> restart rolling      # Zero-downtime restart
+SiteManager+> maintenance on       # Enable maintenance mode
+SiteManager+> logs 100             # View last 100 log lines
+SiteManager+> memory               # Memory usage
+SiteManager+> help                 # Show all commands
+SiteManager+> exit                 # Exit CLI (server continues)
+```
+
+---
 
 ### Server
 ```env

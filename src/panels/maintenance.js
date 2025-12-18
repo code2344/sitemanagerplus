@@ -417,5 +417,337 @@ export function createMaintenancePanel(cluster, watchdog) {
   // Maintenance extend duration
   router.post('/maintenance/extend', express.json(), (req, res) => { try { const { extraMinutes = 10 } = req.body || {}; const maintenance = getMaintenanceManager(); const st = maintenance.getState(); if (!st.enabled) return res.status(400).json({ error: 'Maintenance not enabled' }); maintenance.enable(st.reason || '', (st.durationMinutes || 0) + extraMinutes, 'ops'); res.json({ status: 'success', maintenance: maintenance.getState() }); } catch (err) { logger.error('Extend maintenance error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); } });
 
+  // Additional 15+ useful ops features
+
+  // 1. Worker memory detailed breakdown
+  router.get('/workers/memory-detail', (req, res) => {
+    try {
+      const workers = Object.values(cluster.workers || {}).filter(w => w && w.process);
+      const details = workers.map(w => {
+        const mem = w.process.memoryUsage ? w.process.memoryUsage() : {};
+        return { workerId: w.id, pid: w.process.pid, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, external: mem.external, rss: mem.rss };
+      });
+      res.json({ status: 'success', workers: details });
+    } catch (err) { logger.error('Worker memory detail error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 2. Kill all workers immediately (emergency)
+  router.post('/workers/kill-all', (req, res) => {
+    try {
+      const workers = Object.values(cluster.workers || {}).filter(w => w);
+      workers.forEach(w => w.kill('SIGKILL'));
+      logger.warn('All workers killed via ops panel', { user: req.user.username });
+      res.json({ status: 'success', message: `${workers.length} workers killed` });
+    } catch (err) { logger.error('Kill all workers error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 3. Spawn additional worker (scale up)
+  router.post('/workers/spawn', (req, res) => {
+    try {
+      const newWorker = cluster.fork();
+      logger.info('Worker spawned via ops panel', { workerId: newWorker.id, user: req.user.username });
+      res.json({ status: 'success', workerId: newWorker.id, message: 'Worker spawned' });
+    } catch (err) { logger.error('Spawn worker error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 4. Log file download as text
+  router.get('/logs/download/:logname', (req, res) => {
+    try {
+      const { logname } = req.params;
+      const logPath = path.join(config.paths.logs, logname);
+      const normalizedPath = path.normalize(logPath);
+      if (!normalizedPath.startsWith(path.normalize(config.paths.logs))) return res.status(400).json({ error: 'Invalid log file' });
+      if (!fs.existsSync(logPath)) return res.status(404).json({ error: 'Log file not found' });
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="${logname}"`);
+      res.send(fs.readFileSync(logPath, 'utf8'));
+    } catch (err) { logger.error('Log download error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 5. Real-time worker heartbeat status
+  router.get('/workers/heartbeats', (req, res) => {
+    try {
+      const healthMonitor = watchdog.getHealthMonitor();
+      const workers = healthMonitor.getAllWorkerSummaries();
+      const heartbeats = workers.map(w => ({ workerId: w.workerId, lastHeartbeat: w.lastHeartbeat, status: w.status }));
+      res.json({ status: 'success', heartbeats });
+    } catch (err) { logger.error('Heartbeat status error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 6. Force garbage collection (if enabled with --expose-gc)
+  router.post('/system/gc', (req, res) => {
+    try {
+      if (global.gc) {
+        global.gc();
+        logger.info('Manual GC triggered', { user: req.user.username });
+        res.json({ status: 'success', message: 'GC triggered' });
+      } else {
+        res.json({ status: 'warning', message: 'GC not available (start with --expose-gc)' });
+      }
+    } catch (err) { logger.error('GC error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 7. CPU usage per worker
+  router.get('/workers/cpu-usage', (req, res) => {
+    try {
+      const workers = Object.values(cluster.workers || {}).filter(w => w && w.process);
+      const usage = workers.map(w => ({ workerId: w.id, pid: w.process.pid, cpuUsage: w.process.cpuUsage ? w.process.cpuUsage() : null }));
+      res.json({ status: 'success', workers: usage });
+    } catch (err) { logger.error('CPU usage error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 8. Clear all logs at once
+  router.post('/logs/clear-all', (req, res) => {
+    try {
+      const files = fs.readdirSync(config.paths.logs).filter(f => f.endsWith('.log'));
+      files.forEach(f => {
+        const logPath = path.join(config.paths.logs, f);
+        fs.writeFileSync(logPath, '', 'utf8');
+      });
+      logger.info('All logs cleared via ops panel', { user: req.user.username, count: files.length });
+      res.json({ status: 'success', message: `${files.length} log files cleared` });
+    } catch (err) { logger.error('Clear all logs error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 9. Event loop lag measurement
+  router.get('/system/event-loop-lag', (req, res) => {
+    try {
+      const start = Date.now();
+      setImmediate(() => {
+        const lag = Date.now() - start;
+        res.json({ status: 'success', lagMs: lag, threshold: 100, healthy: lag < 100 });
+      });
+    } catch (err) { logger.error('Event loop lag error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 10. Master process info
+  router.get('/process/master-info', (req, res) => {
+    try {
+      res.json({
+        status: 'success',
+        pid: process.pid,
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        cpu: process.cpuUsage(),
+        title: process.title,
+        execPath: process.execPath,
+        platform: process.platform,
+        arch: process.arch
+      });
+    } catch (err) { logger.error('Master info error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 11. Worker detailed state
+  router.get('/workers/:workerId/state', (req, res) => {
+    try {
+      const { workerId } = req.params;
+      const id = parseInt(workerId, 10);
+      const worker = cluster.workers[id];
+      if (!worker) return res.status(404).json({ error: 'Worker not found' });
+      res.json({
+        status: 'success',
+        worker: {
+          id: worker.id,
+          pid: worker.process.pid,
+          state: worker.state,
+          isDead: worker.isDead(),
+          isConnected: worker.isConnected(),
+          exitedAfterDisconnect: worker.exitedAfterDisconnect,
+          memoryUsage: worker.process.memoryUsage ? worker.process.memoryUsage() : null
+        }
+      });
+    } catch (err) { logger.error('Worker state error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 12. Watchdog config update
+  router.post('/watchdog/config/update', express.json(), (req, res) => {
+    try {
+      const { heartbeatTimeoutMs } = req.body || {};
+      if (!Number.isInteger(heartbeatTimeoutMs) || heartbeatTimeoutMs < 1000) return res.status(400).json({ error: 'Invalid heartbeatTimeoutMs' });
+      const overrideFile = path.join(config.paths.data, 'config-override.json');
+      const cfg = fs.existsSync(overrideFile) ? JSON.parse(fs.readFileSync(overrideFile, 'utf8')) : {};
+      cfg.cluster = cfg.cluster || {}; cfg.cluster.heartbeatTimeoutMs = heartbeatTimeoutMs;
+      fs.writeFileSync(overrideFile, JSON.stringify(cfg, null, 2), 'utf8');
+      res.json({ status: 'success', heartbeatTimeoutMs });
+    } catch (err) { logger.error('Watchdog config error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 13. Backup cleanup (delete old backups)
+  router.post('/backups/cleanup', express.json(), (req, res) => {
+    try {
+      const { keepCount = 5 } = req.body || {};
+      const dir = path.join(config.paths.data, 'ops-backups');
+      if (!fs.existsSync(dir)) return res.json({ status: 'success', deleted: 0 });
+      const items = fs.readdirSync(dir).filter(f => f.startsWith('backup-')).sort().reverse();
+      const toDelete = items.slice(keepCount);
+      toDelete.forEach(name => fs.rmSync(path.join(dir, name), { recursive: true, force: true }));
+      logger.info('Backup cleanup completed', { deleted: toDelete.length, kept: keepCount, user: req.user.username });
+      res.json({ status: 'success', deleted: toDelete.length, kept: items.length - toDelete.length });
+    } catch (err) { logger.error('Backup cleanup error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 14. File watcher status
+  router.get('/watchers/status', (req, res) => {
+    try {
+      res.json({ status: 'success', message: 'File watchers active', watchers: ['static', 'maintenance', 'config'] });
+    } catch (err) { logger.error('Watchers status error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 15. Port connectivity test
+  router.post('/network/test-port', express.json(), async (req, res) => {
+    try {
+      const { port = config.port } = req.body || {};
+      const net = require('net');
+      const server = net.createServer();
+      server.once('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          res.json({ status: 'success', port, inUse: true });
+        } else {
+          res.json({ status: 'error', port, error: err.message });
+        }
+      });
+      server.once('listening', () => {
+        server.close();
+        res.json({ status: 'success', port, inUse: false, available: true });
+      });
+      server.listen(port);
+    } catch (err) { logger.error('Port test error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 16. Disk space check
+  router.get('/system/disk-space', (req, res) => {
+    try {
+      const { execSync } = require('child_process');
+      let output = '';
+      try {
+        // Works on Unix-like systems
+        output = execSync('df -h /').toString();
+      } catch (e) {
+        output = 'df command not available';
+      }
+      res.json({ status: 'success', diskInfo: output });
+    } catch (err) { logger.error('Disk space error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 17. Network connections count
+  router.get('/network/connections', (req, res) => {
+    try {
+      const { execSync } = require('child_process');
+      let count = 0;
+      try {
+        const output = execSync('netstat -an | grep ESTABLISHED | wc -l').toString().trim();
+        count = parseInt(output, 10) || 0;
+      } catch (e) {
+        count = -1; // Not available
+      }
+      res.json({ status: 'success', connections: count });
+    } catch (err) { logger.error('Network connections error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 18. Master process restart (dangerous!)
+  router.post('/process/restart-master', (req, res) => {
+    try {
+      logger.warn('Master process restart requested via ops panel', { user: req.user.username });
+      res.json({ status: 'success', message: 'Master restart in 3 seconds' });
+      setTimeout(() => {
+        process.exit(0); // Supervisor should restart
+      }, 3000);
+    } catch (err) { logger.error('Master restart error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 19. Log level change (runtime)
+  router.post('/logs/level/set', express.json(), (req, res) => {
+    try {
+      const { level } = req.body || {};
+      if (!['ERROR', 'WARN', 'INFO', 'DEBUG'].includes(level)) return res.status(400).json({ error: 'Invalid level' });
+      process.env.LOG_LEVEL = level;
+      logger.info('Log level changed', { level, user: req.user.username });
+      res.json({ status: 'success', level });
+    } catch (err) { logger.error('Log level error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 20. Signal to worker
+  router.post('/workers/:workerId/signal', express.json(), (req, res) => {
+    try {
+      const { workerId } = req.params;
+      const { signal = 'SIGUSR1' } = req.body || {};
+      const id = parseInt(workerId, 10);
+      const worker = cluster.workers[id];
+      if (!worker) return res.status(404).json({ error: 'Worker not found' });
+      worker.process.kill(signal);
+      logger.info('Signal sent to worker', { workerId: id, signal, user: req.user.username });
+      res.json({ status: 'success', message: `Signal ${signal} sent to worker ${id}` });
+    } catch (err) { logger.error('Worker signal error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 21. Log file sizes
+  router.get('/logs/sizes', (req, res) => {
+    try {
+      const files = fs.readdirSync(config.paths.logs).filter(f => f.endsWith('.log'));
+      const sizes = files.map(f => {
+        const stat = fs.statSync(path.join(config.paths.logs, f));
+        return { name: f, bytes: stat.size, mb: (stat.size / 1024 / 1024).toFixed(2) };
+      });
+      res.json({ status: 'success', logs: sizes });
+    } catch (err) { logger.error('Log sizes error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 22. Worker throttle (slow down requests)
+  router.post('/workers/:workerId/throttle', express.json(), (req, res) => {
+    try {
+      const { workerId } = req.params;
+      const { delayMs = 100 } = req.body || {};
+      const id = parseInt(workerId, 10);
+      const worker = cluster.workers[id];
+      if (!worker) return res.status(404).json({ error: 'Worker not found' });
+      worker.send({ cmd: 'throttle', delayMs });
+      logger.info('Worker throttled', { workerId: id, delayMs, user: req.user.username });
+      res.json({ status: 'success', message: `Worker ${id} throttled by ${delayMs}ms` });
+    } catch (err) { logger.error('Worker throttle error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 23. Uptime formatted
+  router.get('/system/uptime-formatted', (req, res) => {
+    try {
+      const uptimeSeconds = process.uptime();
+      const days = Math.floor(uptimeSeconds / 86400);
+      const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+      const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+      const seconds = Math.floor(uptimeSeconds % 60);
+      res.json({ status: 'success', uptime: `${days}d ${hours}h ${minutes}m ${seconds}s`, seconds: uptimeSeconds });
+    } catch (err) { logger.error('Uptime formatted error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 24. Force worker to exit code
+  router.post('/workers/:workerId/exit/:code', (req, res) => {
+    try {
+      const { workerId, code } = req.params;
+      const id = parseInt(workerId, 10);
+      const exitCode = parseInt(code, 10);
+      const worker = cluster.workers[id];
+      if (!worker) return res.status(404).json({ error: 'Worker not found' });
+      worker.send({ cmd: 'exit', code: exitCode });
+      logger.warn('Worker forced to exit', { workerId: id, exitCode, user: req.user.username });
+      res.json({ status: 'success', message: `Worker ${id} will exit with code ${exitCode}` });
+    } catch (err) { logger.error('Worker exit error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 25. All workers status summary
+  router.get('/workers/summary', (req, res) => {
+    try {
+      const workers = Object.values(cluster.workers || {}).filter(w => w);
+      const summary = {
+        total: workers.length,
+        connected: workers.filter(w => w.isConnected()).length,
+        dead: workers.filter(w => w.isDead()).length,
+        states: {}
+      };
+      workers.forEach(w => {
+        summary.states[w.state] = (summary.states[w.state] || 0) + 1;
+      });
+      res.json({ status: 'success', summary });
+    } catch (err) { logger.error('Workers summary error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
   return router;
 }

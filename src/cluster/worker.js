@@ -33,6 +33,7 @@ export function createWorker(watchdog) {
   // Track connection count for graceful shutdown
   let activeConnections = new Set();
   let isDraining = false;
+  let throttleDelayMs = 0;
   let lastHeartbeat = Date.now();
   let requestCount = 0;
   let errorCount = 0;
@@ -82,6 +83,17 @@ export function createWorker(watchdog) {
       });
     }
   }
+
+  /**
+   * Middleware: Optional throttle to delay requests (ops control)
+   */
+  app.use((req, res, next) => {
+    if (throttleDelayMs > 0) {
+      setTimeout(next, throttleDelayMs);
+    } else {
+      next();
+    }
+  });
 
   /**
    * Middleware: Track connections
@@ -263,6 +275,14 @@ export function createWorker(watchdog) {
           process.exit(0);
         }
       }, 100);
+    } else if (msg.cmd === 'throttle') {
+      const delay = Number(msg.delayMs) || 0;
+      throttleDelayMs = Math.max(0, delay);
+      logger.warn('Throttle updated', { workerId, throttleDelayMs });
+    } else if (msg.cmd === 'exit') {
+      const code = Number(msg.code) || 0;
+      logger.warn('Forced exit requested', { workerId, code });
+      setTimeout(() => process.exit(code), 50);
     }
   });
 

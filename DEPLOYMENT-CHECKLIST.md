@@ -15,6 +15,17 @@ Use this checklist before deploying SiteManager+ to production.
   # SITEMANAGER_API_KEY=<strong-key>
   ```
 
+- [ ] **Register hardware security keys**
+  - Admin: `/admin` → Security → Register Hardware Key
+  - Ops: `/maintenance` → Security → Register Hardware Key
+
+- [ ] **Save SESSION_SECRET for OTP generation**
+  ```bash
+  # Save SESSION_SECRET from .env or data/session-secret
+  cat data/session-secret
+  # Store securely for offline OTP reset
+  ```
+
 - [ ] **Generate new API keys** for production services
   ```bash
   node bin/cli.js api-keys generate

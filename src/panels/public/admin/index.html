@@ -11,6 +11,9 @@
     <div class="brand">SiteManager+ • Admin</div>
     <nav class="nav">
       <a href="/admin" class="active">Dashboard</a>
+      <a href="/admin/metrics/summary" target="_blank">Metrics</a>
+      <a href="/admin/api-keys" target="_blank">API Keys</a>
+      <a href="/admin/plugins" target="_blank">Plugins</a>
       <a href="/admin/logs/list" target="_blank">Logs (JSON)</a>
       <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
     </nav>
@@ -45,6 +48,16 @@
           <button class="btn" id="btnFetchLogs">Fetch</button>
         </div>
         <pre class="logs" id="logs"></pre>
+      </div>
+      <div class="card">
+        <h2>Security</h2>
+        <p>Manage hardware security key.</p>
+        <div class="row">
+          <button class="btn" id="btnRegisterHW">Register Hardware Key</button>
+          <button class="btn outline" id="btnResetHW">Reset (OTP)</button>
+        </div>
+        <label>OTP</label>
+        <input id="otpInput" placeholder="Enter 6-digit OTP" />
       </div>
     </section>
   </main>

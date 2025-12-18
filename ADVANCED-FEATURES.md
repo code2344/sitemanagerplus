@@ -16,6 +16,9 @@ This guide covers all the advanced features implemented in SiteManager+.
 10. [Load Testing](#load-testing)
 11. [Development Mode](#development-mode)
 12. [Systemd Integration](#systemd-integration)
+13. [Hardware Keys + OTP Reset](#hardware-keys--otp-reset)
+14. [Admin Feature Endpoints](#admin-feature-endpoints)
+15. [Ops Feature Endpoints](#ops-feature-endpoints)
 
 ---
 
@@ -372,6 +375,27 @@ ALERT_QUIET_HOURS=22:00-08:00
 
 ## Plugin System
 
+---
+
+## Admin Feature Endpoints
+
+- Backups: `POST /admin/backups/create`, `GET /admin/backups/list`, `POST /admin/backups/restore`
+- Cache: `POST /admin/cache/purge`
+- SSL: `POST /admin/ssl/generate`, `GET /admin/ssl/status`
+- Workers: `POST /admin/config/worker-count/update`
+- Scheduled: `GET /admin/scheduled/jobs`, `POST /admin/scheduled/log-rotation/run`
+- Audit: `GET /admin/audit/logs`
+- Sessions: `POST /admin/sessions/revoke-all`
+- Alerts: `POST /admin/alerts/test-email`
+- Webhooks: `GET /admin/webhooks/list`, `POST /admin/webhooks/test`
+- Static: `GET /admin/static/size`
+- Maintenance Page: `POST /admin/maintenance/page/edit`
+- Plugins: `POST /admin/plugins/reload`, `POST /admin/plugins/:name/toggle`
+- Metrics: `GET /admin/metrics`, `GET /admin/metrics/summary`, `POST /admin/metrics/reset`
+- Tracing: `POST /admin/tracing/toggle`
+- Security Headers: `POST /admin/security/headers/set`
+- Hardware Key: `POST /admin/webauthn/register/start`, `POST /admin/webauthn/register/verify`, `GET /admin/hw`, `POST /admin/webauthn/start`, `POST /admin/webauthn/verify`, `POST /admin/reset-hw`
+
 ### Create a Plugin
 
 ```javascript
@@ -441,6 +465,30 @@ curl -u admin:password -X POST \
 ---
 
 ## Load Testing
+
+---
+
+## Ops Feature Endpoints
+
+- Rolling Restart: `POST /maintenance/restart/rolling`
+- Worker Control: `POST /maintenance/restart/worker/:workerId`, `POST /maintenance/restart/worker/:workerId/force`
+- Logs: `GET /maintenance/logs`, `GET /maintenance/logs/files`, `POST /maintenance/logs/rotate`
+- Cache: `POST /maintenance/cache/clear`
+- Plugins: `POST /maintenance/plugins/reload`
+- Watchdog: `POST /maintenance/watchdog/restart`, `GET /maintenance/watchdog/status`
+- Thresholds: `POST /maintenance/thresholds/update`
+- Disk/Network/Process: `GET /maintenance/disk/usage`, `GET /maintenance/network/ports`, `GET /maintenance/process/list`
+- Static Backups: `POST /maintenance/static/backup`, `POST /maintenance/static/restore`
+- SSL: `GET /maintenance/ssl/validate`
+- Alerts: `POST /maintenance/alerts/test`
+- Tracing: `POST /maintenance/tracing/toggle`
+- Debug: `POST /maintenance/debug/enable`, `POST /maintenance/debug/disable`
+- Health: `GET /maintenance/health/run-check`
+- Scheduled: `GET /maintenance/scheduled/jobs`
+- Sessions: `POST /maintenance/sessions/revoke-all`
+- Config Reload: `POST /maintenance/config/reload`
+- Maintenance Extend: `POST /maintenance/maintenance/extend`
+- Hardware Key: `POST /maintenance/webauthn/register/start`, `POST /maintenance/webauthn/register/verify`, `GET /maintenance/hw`, `POST /maintenance/webauthn/start`, `POST /maintenance/webauthn/verify`, `POST /maintenance/reset-hw`
 
 ### Run Load Test (Dev Mode Only)
 
@@ -523,6 +571,28 @@ npm run dev
 ---
 
 ## Systemd Integration
+
+---
+
+## Hardware Keys + OTP Reset
+
+- Overview: Password-based first login, then hardware key required.
+- Admin and Ops panels support WebAuthn security keys.
+- Reset flow: Provide a 6-digit OTP to clear hardware key and re-register.
+
+### Generate OTP (offline)
+
+```bash
+# Input the app secret (SESSION_SECRET from .env or data/session-secret)
+./bin/otp.sh <APP_SECRET>
+# Shows valid OTPs for the current and last 4 minutes
+```
+
+### Use OTP to reset
+
+- Admin: POST `/admin/reset-hw` with `{ otp: "123456" }`
+- Ops: POST `/maintenance/reset-hw` with `{ otp: "123456" }`
+- On success, hardware credentials are cleared; re-register via panel.
 
 ### Install as Service
 

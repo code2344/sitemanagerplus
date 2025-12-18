@@ -12,6 +12,7 @@
     <nav class="nav">
       <a href="/maintenance" class="active">Dashboard</a>
       <a href="#terminal">Terminal (disabled)</a>
+      <a href="/maintenance/logs/files" target="_blank">Log Files</a>
       <form method="post" action="/maintenance/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
     </nav>
   </header>
@@ -35,6 +36,16 @@
           <button class="btn" id="btnEnableMaint">Enable</button>
           <button class="btn outline" id="btnDisableMaint">Disable</button>
         </div>
+      </div>
+      <div class="card">
+        <h2>Security</h2>
+        <p>Manage hardware key for Ops.</p>
+        <div class="row">
+          <button class="btn" id="btnRegisterHW">Register Hardware Key</button>
+          <button class="btn outline" id="btnResetHW">Reset (OTP)</button>
+        </div>
+        <label>OTP</label>
+        <input id="otpInput" placeholder="Enter 6-digit OTP" />
       </div>
       <div class="card">
         <h2>Terminal</h2>

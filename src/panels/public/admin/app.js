@@ -50,6 +50,29 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnEnable').addEventListener('click', () => toggleMaintenance(true));
   document.getElementById('btnDisable').addEventListener('click', () => toggleMaintenance(false));
   document.getElementById('btnFetchLogs').addEventListener('click', fetchLogs);
+  const btnReg = document.getElementById('btnRegisterHW');
+  if (btnReg) btnReg.addEventListener('click', async () => {
+    const resp = await fetch('/admin/webauthn/register/start', { method: 'POST' });
+    const opts = await resp.json();
+    const cred = await navigator.credentials.create({ publicKey: opts });
+    const att = {
+      id: cred.id,
+      rawId: btoa(String.fromCharCode(...new Uint8Array(cred.rawId))),
+      type: cred.type,
+      response: {
+        clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(cred.response.clientDataJSON))),
+        attestationObject: btoa(String.fromCharCode(...new Uint8Array(cred.response.attestationObject)))
+      }
+    };
+    const vr = await fetch('/admin/webauthn/register/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(att) });
+    alert(vr.ok ? 'Hardware key registered.' : 'Registration failed');
+  });
+  const btnReset = document.getElementById('btnResetHW');
+  if (btnReset) btnReset.addEventListener('click', async () => {
+    const otp = document.getElementById('otpInput').value.trim();
+    const res = await fetch('/admin/reset-hw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ otp }) });
+    alert(res.ok ? 'Reset successful. Re-register key.' : 'Invalid OTP or error');
+  });
   refresh();
   setInterval(refresh, 8000);
 });

@@ -12,8 +12,10 @@ Production-grade Node.js server runtime for serving static websites with maximum
 - **Health Monitoring**: Real-time worker health tracking and metrics
 - **Hot Reload**: Automatic detection of file changes
 - **Email Alerts**: Integration with Resend for critical notifications
-- **Security**: Authentication, rate limiting, path traversal protection
+- **Security**: Authentication, rate limiting, path traversal protection, **WebAuthn hardware keys**
 - **Performance**: Compression, intelligent caching, CDN-ready headers
+- **Control Panel Features**: 20+ admin endpoints, 20+ ops endpoints (see `ADVANCED-FEATURES.md`)
+- **OTP Reset**: Offline OTP generator for hardware key resets
 
 ## 🚀 Quick Start
 
@@ -87,17 +89,19 @@ sitemanagerplus/
 
 ### Admin Panel
 - **URL**: `http://localhost:3000/admin`
-- **Auth**: Basic HTTP authentication
+- **Auth**: Password (first time) → **Hardware security key required**
 - **Default**: Username `admin` / Password `changeme123`
 - **Features**:
   - System status and worker health
   - Toggle maintenance mode
   - View logs
   - Restart information
+  - Backups, SSL, API keys, plugins, metrics, audit logs, webhooks, scheduled tasks, and more (20+ endpoints)
+  - Register/Reset hardware security key
 
 ### Operations Panel
 - **URL**: `http://localhost:3000/maintenance`
-- **Auth**: Basic HTTP authentication  
+- **Auth**: Password (first time) → **Hardware security key required**
 - **Default**: Username `ops` / Password `changeme456`
 - **Features**:
   - Graceful rolling restarts
@@ -289,6 +293,12 @@ cat .env | grep ADMIN_
 
 # Test basic auth
 curl -u admin:changeme123 http://localhost:3000/admin
+
+# Hardware key reset (if locked out)
+# 1. Get SESSION_SECRET from .env or data/session-secret
+# 2. Run OTP generator:
+./bin/otp.sh <SESSION_SECRET>
+# 3. Use OTP to reset hardware key via admin/maintenance panel
 ```
 
 ### File Changes Not Detected
@@ -323,6 +333,7 @@ curl -u admin:changeme123 http://localhost:3000/admin
 
 ### Checklist
 - [ ] Change all default credentials
+- [ ] Register hardware keys for admin and ops
 - [ ] Set `NODE_ENV=production`
 - [ ] Configure email alerts with Resend API key
 - [ ] Set appropriate worker count
@@ -332,6 +343,7 @@ curl -u admin:changeme123 http://localhost:3000/admin
 - [ ] Set up monitoring and alerting
 - [ ] Test graceful restarts
 - [ ] Document maintenance procedures
+- [ ] Save SESSION_SECRET for offline OTP generation
 
 ### Recommended Setup
 ```

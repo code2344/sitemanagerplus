@@ -12,6 +12,7 @@ import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { getWebAuthnStore, getRegistrationOptions, verifyRegistration, getAuthenticationOptions, verifyAuthentication, clearCredentialsForRole, hasRegisteredCredential } from './webauthn.js';
 
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_ATTEMPTS = 10; // Max failed attempts
@@ -56,13 +57,14 @@ function sign(data) {
   return b64url(crypto.createHmac('sha256', config.auth.sessionSecret).update(data).digest());
 }
 
-function createToken(username, role) {
+function createToken(username, role, hwVerified = false) {
   const payload = {
     u: username,
     r: role,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor((Date.now() + SESSION_TTL_MS) / 1000),
     jti: uuidv4(),
+    hw: !!hwVerified,
   };
   const data = b64url(JSON.stringify(payload));
   const mac = sign(data);
@@ -82,7 +84,7 @@ function verifyToken(token) {
   try {
     const json = JSON.parse(Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
     if (json.exp && Date.now() / 1000 > json.exp) return null;
-    return { username: json.u, role: json.r };
+    return { username: json.u, role: json.r, hw: !!json.hw };
   } catch {
     return null;
   }
@@ -301,6 +303,15 @@ export function sessionAuth(requiredRole = 'admin', panelPath = '/') {
 
     // Prefer a valid token
     if (payload && payload.role === requiredRole) {
+      // Enforce hardware key if registered for this role
+      const requireHW = hasRegisteredCredential(requiredRole);
+      if (requireHW && !payload.hw) {
+        // Serve hardware verification page
+        res.status(401);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        const roleLabel = requiredRole === 'maintenance' ? 'Ops' : 'Admin';
+        return res.send(renderHWRequiredPage(panelPath, roleLabel));
+      }
       req.user = { username: payload.username, role: payload.role };
       return next();
     }
@@ -323,6 +334,14 @@ export function sessionAuth(requiredRole = 'admin', panelPath = '/') {
         }
 
         if (username === allowedUsername && password === allowedPassword) {
+          // If credential is registered, require hardware key via page
+          const requireHW = hasRegisteredCredential(requiredRole);
+          if (requireHW) {
+            res.status(401);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            const roleLabel = requiredRole === 'maintenance' ? 'Ops' : 'Admin';
+            return res.send(renderHWRequiredPage(panelPath, roleLabel));
+          }
           req.user = { username, role: requiredRole };
           return next();
         }
@@ -381,12 +400,13 @@ export function loginHandlers(requiredRole = 'admin', panelPath = '/') {
         return res.end();
       }
 
-      // Success: create session and redirect to panel root
-      const token = createToken(username, requiredRole);
+      // Success: decide if HW required
+      const requireHW = hasRegisteredCredential(requiredRole);
+      const token = createToken(username, requiredRole, !requireHW);
       setSessionCookie(res, token, panelPath);
       clearRateLimit(req.ip);
       res.status(302);
-      res.setHeader('Location', panelPath + '/');
+      res.setHeader('Location', requireHW ? `${panelPath}/hw` : panelPath + '/');
       return res.end();
     } catch (err) {
       logger.error('Login error', { error: err.message });
@@ -405,4 +425,141 @@ export function loginHandlers(requiredRole = 'admin', panelPath = '/') {
   };
 
   return { getLogin, postLogin, postLogout };
+}
+
+/**
+ * Hardware key required page
+ */
+function renderHWRequiredPage(panelPath = '/', roleLabel = 'Admin') {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${roleLabel} • Hardware Key</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:#0b1020;color:#e8eef9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .card{background:#121a33;border:1px solid #2a355a;border-radius:12px;max-width:420px;width:100%;padding:24px;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+    h1{font-size:20px;margin:0 0 12px}
+    .btn{width:100%;margin-top:12px;padding:10px 12px;background:#5a78ff;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+    .btn:hover{background:#4e68e0}
+    .hint{margin-top:12px;font-size:12px;color:#8fa0c9}
+    .error{background:#2a1a1a;color:#ffd6d6;border:1px solid #5a2a2a;padding:8px;border-radius:8px;margin-bottom:12px;display:none}
+  </style>
+  <script>
+    async function startAuth(){
+      const resp = await fetch('${panelPath}/webauthn/start', { method: 'POST' });
+      const opts = await resp.json();
+      // Convert from base64url to ArrayBuffers where needed
+      // Use WebAuthn API
+      const cred = await navigator.credentials.get({ publicKey: opts });
+      const clientDataJSON = btoa(String.fromCharCode(...new Uint8Array(cred.response.clientDataJSON)));
+      const authenticatorData = btoa(String.fromCharCode(...new Uint8Array(cred.response.authenticatorData)));
+      const signature = btoa(String.fromCharCode(...new Uint8Array(cred.response.signature)));
+      const rawId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+      const data = { id: cred.id, rawId, type: cred.type, response: { clientDataJSON, authenticatorData, signature, userHandle: cred.response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(cred.response.userHandle))) : null } };
+      const verify = await fetch('${panelPath}/webauthn/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      if (!verify.ok) { document.getElementById('err').style.display='block'; return; }
+      window.location.href = '${panelPath}/';
+    }
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h1>Hardware Key Required</h1>
+    <div id="err" class="error">Verification failed. Try again.</div>
+    <p>Touch your security key to continue.</p>
+    <button class="btn" onclick="startAuth()">Verify Hardware Key</button>
+    <div class="hint">If you lost access, contact support to reset with OTP.</div>
+  </div>
+</body>
+</html>`;
+}
+
+export function hardwareRoutes(requiredRole = 'admin', panelPath = '/') {
+  const roleLabel = requiredRole === 'maintenance' ? 'Ops' : 'Admin';
+
+  const getHW = (req, res) => {
+    res.status(200);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderHWRequiredPage(panelPath, roleLabel));
+  };
+
+  const startAuth = (req, res) => {
+    try {
+      const opts = getAuthenticationOptions(requiredRole);
+      res.json(opts);
+    } catch (err) {
+      logger.error('Start WebAuthn auth error', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  const verifyAuth = (req, res) => {
+    try {
+      const ok = verifyAuthentication(requiredRole, req.body);
+      if (!ok) return res.status(401).json({ error: 'Invalid hardware key' });
+      // Issue a new session token with hwVerified
+      const cookies = parseCookies(req);
+      const sid = cookies.smplus_sid;
+      const payload = verifyToken(sid);
+      if (!payload) return res.status(401).json({ error: 'Session missing' });
+      const token = createToken(payload.username, payload.role, true);
+      setSessionCookie(res, token, panelPath);
+      res.json({ status: 'success' });
+    } catch (err) {
+      logger.error('Verify WebAuthn auth error', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  const startRegister = (req, res) => {
+    try {
+      const opts = getRegistrationOptions(requiredRole);
+      res.json(opts);
+    } catch (err) {
+      logger.error('Start WebAuthn reg error', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  const verifyRegister = (req, res) => {
+    try {
+      const ok = verifyRegistration(requiredRole, req.body);
+      if (!ok) return res.status(400).json({ error: 'Registration failed' });
+      res.json({ status: 'success' });
+    } catch (err) {
+      logger.error('Verify WebAuthn reg error', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  const resetHW = (req, res) => {
+    try {
+      const { otp } = req.body || {};
+      if (!validateOTP(otp)) return res.status(401).json({ error: 'Invalid OTP' });
+      clearCredentialsForRole(requiredRole);
+      res.json({ status: 'success', message: 'Hardware key reset. Please re-register.' });
+    } catch (err) {
+      logger.error('Reset HW error', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  return { getHW, startAuth, verifyAuth, startRegister, verifyRegister, resetHW };
+}
+
+// OTP validation compatible with bin/otp.sh
+function validateOTP(otp) {
+  if (!otp || !/^[0-9]{6}$/.test(otp)) return false;
+  const secret = config.auth.sessionSecret;
+  const now = Math.floor(Date.now() / 60000); // minute counter
+  for (let i = 0; i < 5; i++) {
+    const counter = Buffer.alloc(8);
+    counter.writeBigUInt64BE(BigInt(now - i));
+    const hmac = crypto.createHmac('sha256', secret).update(counter).digest();
+    const code = (hmac.readUInt32BE(0) % 1000000).toString().padStart(6, '0');
+    if (code === otp) return true;
+  }
+  return false;
 }

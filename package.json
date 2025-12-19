@@ -33,7 +33,10 @@
     "node-fetch": "^2.6.11",
     "node-cron": "^3.0.2",
     "socket.io": "^4.5.4",
-    "@simplewebauthn/server": "^9.0.3"
+    "@simplewebauthn/server": "^9.0.3",
+    "archiver": "^5.3.1",
+    "adm-zip": "^0.5.10",
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {}
 }

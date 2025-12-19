@@ -10,7 +10,7 @@
  */
 
 import express from 'express';
-import { basicAuth, requireAPIKeyOrAuth } from '../utils/auth.js';
+import { sessionAuth, requireAPIKeyOrAuth } from '../utils/auth.js';
 import { getMetricsCollector } from '../utils/metrics.js';
 import { getAPIKeyManager } from '../utils/api-keys.js';
 import { getPluginManager } from '../utils/plugin-system.js';
@@ -21,8 +21,8 @@ import * as loadTesting from '../utils/load-testing.js';
 export function createExtendedAdminPanel(watchdog) {
   const router = express.Router();
 
-  // All routes require admin authentication
-  router.use(basicAuth('admin'));
+  // All routes require admin authentication (session-aware)
+  router.use(sessionAuth('admin', '/admin'));
 
   /**
    * GET /admin/metrics - Prometheus metrics format

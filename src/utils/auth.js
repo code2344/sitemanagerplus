@@ -12,6 +12,7 @@ import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { verifyUser } from './users.js';
 import { getWebAuthnStore, getRegistrationOptions, verifyRegistration, getAuthenticationOptions, verifyAuthentication, clearCredentialsForRole, hasRegisteredCredential } from './webauthn.js';
 
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
@@ -165,21 +166,19 @@ export function basicAuth(allowedRole = 'admin') {
       const [username, password] = decoded.split(':');
 
       // Get allowed credentials based on role
-      let allowedUsername, allowedPassword;
-      if (allowedRole === 'maintenance') {
-        allowedUsername = config.maintenanceAuth.username;
-        allowedPassword = config.maintenanceAuth.password;
-      } else {
-        allowedUsername = config.admin.username;
-        allowedPassword = config.admin.password;
+      // Validate against users store first, then fallback to single user from config
+      let credentialsValid = verifyUser(allowedRole === 'maintenance' ? 'maintenance' : 'admin', username, password);
+      if (!credentialsValid) {
+        let allowedUsername, allowedPassword;
+        if (allowedRole === 'maintenance') {
+          allowedUsername = config.maintenanceAuth.username;
+          allowedPassword = config.maintenanceAuth.password;
+        } else {
+          allowedUsername = config.admin.username;
+          allowedPassword = config.admin.password;
+        }
+        credentialsValid = username === allowedUsername && password === allowedPassword;
       }
-
-      // Validate credentials
-      // Note: In production, use bcrypt or similar for password comparison
-      // For now using simple string comparison as config could be from env vars
-      const credentialsValid = 
-        username === allowedUsername && 
-        password === allowedPassword;
 
       if (!credentialsValid) {
         recordFailedAttempt(ip);
@@ -380,16 +379,18 @@ export function loginHandlers(requiredRole = 'admin', panelPath = '/') {
     try {
       const { username, password } = req.body || {};
 
-      let allowedUsername, allowedPassword;
-      if (requiredRole === 'maintenance') {
-        allowedUsername = config.maintenanceAuth.username;
-        allowedPassword = config.maintenanceAuth.password;
-      } else {
-        allowedUsername = config.admin.username;
-        allowedPassword = config.admin.password;
+      let credentialsValid = verifyUser(requiredRole === 'maintenance' ? 'maintenance' : 'admin', username, password);
+      if (!credentialsValid) {
+        let allowedUsername, allowedPassword;
+        if (requiredRole === 'maintenance') {
+          allowedUsername = config.maintenanceAuth.username;
+          allowedPassword = config.maintenanceAuth.password;
+        } else {
+          allowedUsername = config.admin.username;
+          allowedPassword = config.admin.password;
+        }
+        credentialsValid = username === allowedUsername && password === allowedPassword;
       }
-
-      const credentialsValid = username === allowedUsername && password === allowedPassword;
       if (!credentialsValid) {
         // Clear any existing bad session
         clearSessionCookie(res, panelPath);
@@ -448,19 +449,26 @@ function renderHWRequiredPage(panelPath = '/', roleLabel = 'Admin') {
   </style>
   <script>
     async function startAuth(){
-      const resp = await fetch('${panelPath}/webauthn/start', { method: 'POST' });
-      const opts = await resp.json();
-      // Convert from base64url to ArrayBuffers where needed
-      // Use WebAuthn API
-      const cred = await navigator.credentials.get({ publicKey: opts });
-      const clientDataJSON = btoa(String.fromCharCode(...new Uint8Array(cred.response.clientDataJSON)));
-      const authenticatorData = btoa(String.fromCharCode(...new Uint8Array(cred.response.authenticatorData)));
-      const signature = btoa(String.fromCharCode(...new Uint8Array(cred.response.signature)));
-      const rawId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
-      const data = { id: cred.id, rawId, type: cred.type, response: { clientDataJSON, authenticatorData, signature, userHandle: cred.response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(cred.response.userHandle))) : null } };
-      const verify = await fetch('${panelPath}/webauthn/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-      if (!verify.ok) { document.getElementById('err').style.display='block'; return; }
-      window.location.href = '${panelPath}/';
+      try {
+        const resp = await fetch('${panelPath}/webauthn/start', { method: 'POST' });
+        const opts = await resp.json();
+        const b64urlToUint8 = (s) => { const pad = (str) => str + '==='.slice((str.length + 3) % 4); const base64 = pad(s.replace(/-/g, '+').replace(/_/g, '/')); const bin = atob(base64); const arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i); return arr.buffer; };
+        const publicKey = { ...opts };
+        if (typeof publicKey.challenge === 'string') publicKey.challenge = b64urlToUint8(publicKey.challenge);
+        if (Array.isArray(publicKey.allowCredentials)) publicKey.allowCredentials = publicKey.allowCredentials.map(c => ({ ...c, id: typeof c.id === 'string' ? b64urlToUint8(c.id) : c.id }));
+        const cred = await navigator.credentials.get({ publicKey });
+        const clientDataJSON = btoa(String.fromCharCode(...new Uint8Array(cred.response.clientDataJSON)));
+        const authenticatorData = btoa(String.fromCharCode(...new Uint8Array(cred.response.authenticatorData)));
+        const signature = btoa(String.fromCharCode(...new Uint8Array(cred.response.signature)));
+        const rawId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+        const data = { id: cred.id, rawId, type: cred.type, response: { clientDataJSON, authenticatorData, signature, userHandle: cred.response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(cred.response.userHandle))) : null } };
+        const verify = await fetch('${panelPath}/webauthn/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        if (!verify.ok) { document.getElementById('err').style.display='block'; return; }
+        window.location.href = '${panelPath}/';
+      } catch (e) {
+        console.error('HW verify error', e);
+        document.getElementById('err').style.display='block';
+      }
     }
   </script>
 </head>

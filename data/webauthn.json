@@ -1,0 +1,19 @@
+{
+  "admin": {
+    "userId": "admin",
+    "credentials": [
+      {
+        "id": "h14N1_B3byE7tsSsoIf5-sgEg4s",
+        "rawId": "h14N1/B3byE7tsSsoIf5+sgEg4s="
+      },
+      {
+        "id": "gR8qWqL3FSJGNpx0JvpRkJ6s46E",
+        "rawId": "gR8qWqL3FSJGNpx0JvpRkJ6s46E="
+      }
+    ]
+  },
+  "maintenance": {
+    "userId": "maintenance",
+    "credentials": []
+  }
+}

@@ -76,7 +76,7 @@ curl -u admin:password http://localhost:3000/admin/metrics/summary
 
 - `requests_total` - Total HTTP requests
 - `requests_errors_total` - Total request errors
-- `request_duration_ms` - Average response time
+- `request_duration_ms` - Average response time\
 - `request_duration_p50/p95/p99` - Response time percentiles
 - `method_request_count` - Requests by HTTP method
 - `status_code_count` - Responses by status code
@@ -380,6 +380,7 @@ ALERT_QUIET_HOURS=22:00-08:00
 ## Admin Feature Endpoints
 
 - Backups: `POST /admin/backups/create`, `GET /admin/backups/list`, `POST /admin/backups/restore`
+- Backup zips: `POST /admin/backups/create-zip`, `POST /admin/backups/prune`
 - Cache: `POST /admin/cache/purge`
 - SSL: `POST /admin/ssl/generate`, `GET /admin/ssl/status`
 - Workers: `POST /admin/config/worker-count/update`
@@ -389,12 +390,43 @@ ALERT_QUIET_HOURS=22:00-08:00
 - Alerts: `POST /admin/alerts/test-email`
 - Webhooks: `GET /admin/webhooks/list`, `POST /admin/webhooks/test`
 - Static: `GET /admin/static/size`
+- File manager: `GET /admin/files/list`, `POST /admin/files/read`, `POST /admin/files/write`, `POST /admin/files/delete`
+- Logs: `POST /admin/logs`, `GET /admin/logs/list`, `GET /admin/logs/download/:logname`, `POST /admin/logs/rotate`
 - Maintenance Page: `POST /admin/maintenance/page/edit`
 - Plugins: `POST /admin/plugins/reload`, `POST /admin/plugins/:name/toggle`
 - Metrics: `GET /admin/metrics`, `GET /admin/metrics/summary`, `POST /admin/metrics/reset`
 - Tracing: `POST /admin/tracing/toggle`
 - Security Headers: `POST /admin/security/headers/set`
+- CSP Policy: `POST /admin/security/csp/set`
+- Config override: `GET /admin/config/override/get`, `POST /admin/config/override/set`
+- Log management: `POST /admin/logs/clear/:logname`, `GET /admin/logs/access`, `GET /admin/logs/errors`
 - Hardware Key: `POST /admin/webauthn/register/start`, `POST /admin/webauthn/register/verify`, `GET /admin/hw`, `POST /admin/webauthn/start`, `POST /admin/webauthn/verify`, `POST /admin/reset-hw`
+- SMP backups: `GET /admin/backups/export-smp`, `POST /admin/backups/import-smp-from-url`, `POST /admin/backups/import-smp-upload`
+- Accounts: `GET /admin/accounts/:role/list`, `POST /admin/accounts/:role/add`, `POST /admin/accounts/:role/remove`
+- System snapshot: `GET /admin/system/snapshot`
+
+### Backups (.smp)
+
+- Export: `GET /admin/backups/export-smp` — downloads a `.smp` (renamed zip) containing `website/`, `data/`, and `maintenance/` contents.
+- Import from URL: `POST /admin/backups/import-smp-from-url { url }` — fetches a remote `.smp` and restores.
+- Import upload: `POST /admin/backups/import-smp-upload` — accepts multipart file upload field `file` and restores.
+
+### Accounts Management
+
+- List: `GET /admin/accounts/:role/list` — role is `admin` or `maintenance`.
+- Add: `POST /admin/accounts/:role/add { username, password }`
+- Remove: `POST /admin/accounts/:role/remove { username }`
+
+UI integration is available in the Admin dashboard: Backups (export/import by URL/upload) and Accounts (list/add/remove).
+
+## Ops Feature Endpoints (Maintenance)
+
+In addition to existing operations endpoints, backups are accessible to ops:
+
+- Export: `GET /maintenance/backups/export-smp`
+- Import from URL: `POST /maintenance/backups/import-smp-from-url { url }`
+
+UI integration is available in the Maintenance dashboard: Backups (export/import by URL).
 
 ### Create a Plugin
 

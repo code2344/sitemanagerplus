@@ -19,6 +19,8 @@ import { sessionAuth, loginHandlers, rateLimit, hardwareRoutes } from '../utils/
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { getMaintenanceManager } from '../maintenance/manager.js';
+import archiver from 'archiver';
+import fetch from 'node-fetch';
 
 export function createMaintenancePanel(cluster, watchdog) {
   const router = express.Router();
@@ -748,6 +750,51 @@ export function createMaintenancePanel(cluster, watchdog) {
       res.json({ status: 'success', summary });
     } catch (err) { logger.error('Workers summary error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
   });
+
+  // 26. Export .smp backup for ops
+  router.get('/backups/export-smp', async (req, res) => {
+    try {
+      const projectName = process.env.PROJECT_NAME || 'project';
+      const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0,8) + '-' + new Date().toISOString().replace(/[:.T]/g, '').slice(9,15);
+      const filename = `${projectName}-backup-${ts}.smp`;
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      archive.on('error', (err) => { throw err; });
+      archive.pipe(res);
+      archive.directory(config.staticSiteDir, 'website');
+      archive.directory(config.paths.data, 'data');
+      archive.file(path.join(config.paths.data, 'config-override.json'), { name: 'config-override.json' });
+      archive.directory(config.maintenance.pageDir, 'maintenance');
+      await archive.finalize();
+    } catch (err) { logger.error('Ops Export SMP error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 27. Import .smp from URL (ops)
+  router.post('/backups/import-smp-from-url', express.json(), async (req, res) => {
+    try {
+      const { url } = req.body || {};
+      if (!url) return res.status(400).json({ error: 'url required' });
+      const r = await fetch(url);
+      if (!r.ok) return res.status(400).json({ error: 'Failed to fetch smp file' });
+      const buf = await r.buffer();
+      const tmpZip = path.join(config.paths.data, 'tmp-import.zip');
+      fs.writeFileSync(tmpZip, buf);
+      const unzip = await import('adm-zip');
+      const AdmZip = unzip.default;
+      const zip = new AdmZip(tmpZip);
+      const extractDir = path.join(config.paths.data, 'import-extract');
+      if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
+      fs.mkdirSync(extractDir, { recursive: true });
+      zip.extractAllTo(extractDir, true);
+      const websiteSrc = path.join(extractDir, 'website'); if (fs.existsSync(websiteSrc)) fs.cpSync(websiteSrc, config.staticSiteDir, { recursive: true });
+      const dataSrc = path.join(extractDir, 'data'); if (fs.existsSync(dataSrc)) fs.cpSync(dataSrc, config.paths.data, { recursive: true });
+      const maintSrc = path.join(extractDir, 'maintenance'); if (fs.existsSync(maintSrc)) fs.cpSync(maintSrc, config.maintenance.pageDir, { recursive: true });
+      res.json({ status: 'success', message: 'Import completed' });
+    } catch (err) { logger.error('Ops Import SMP error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
 
   return router;
 }

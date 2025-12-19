@@ -50,6 +50,15 @@
         <pre class="logs" id="logs"></pre>
       </div>
       <div class="card">
+        <h2>Log Tools</h2>
+        <label>Log file name</label>
+        <input id="logNameAction" value="app.log" />
+        <div class="row">
+          <button class="btn small" id="btnDownloadLog">Download</button>
+          <button class="btn small outline" id="btnRotateLog">Rotate</button>
+        </div>
+      </div>
+      <div class="card">
         <h2>Security</h2>
         <p>Manage hardware security key.</p>
         <div class="row">
@@ -58,6 +67,93 @@
         </div>
         <label>OTP</label>
         <input id="otpInput" placeholder="Enter 6-digit OTP" />
+      </div>
+      <div class="card">
+        <h2>Backups</h2>
+        <p>Export and import .smp backups.</p>
+        <div class="row">
+          <button class="btn" id="btnExportSmp">Export .smp</button>
+        </div>
+        <label>Import from URL</label>
+        <input id="importUrl" placeholder="https://example.com/backup.smp" />
+        <div class="row">
+          <button class="btn" id="btnImportSmp">Import</button>
+        </div>
+        <label>Import upload (.smp)</label>
+        <input id="importFile" type="file" accept=".smp,.zip" />
+        <div class="row">
+          <button class="btn" id="btnImportUpload">Upload & Import</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Accounts</h2>
+        <p>Manage admin and maintenance accounts.</p>
+        <div class="row">
+          <button class="btn small" id="btnLoadAdmin">Load Admins</button>
+          <button class="btn small" id="btnLoadMaint">Load Maintenance</button>
+        </div>
+        <div class="row">
+          <select id="accountRole">
+            <option value="admin">admin</option>
+            <option value="maintenance">maintenance</option>
+          </select>
+          <input id="accountUser" placeholder="username" />
+          <input id="accountPass" placeholder="password" type="password" />
+          <button class="btn" id="btnAddAccount">Add</button>
+          <button class="btn outline" id="btnRemoveAccount">Remove</button>
+        </div>
+        <pre class="logs" id="accountsList"></pre>
+      </div>
+      <div class="card">
+        <h2>File Manager</h2>
+        <label>Directory (relative to website)</label>
+        <input id="fmDir" value="" />
+        <div class="row">
+          <button class="btn small" id="btnListFiles">List</button>
+        </div>
+        <pre class="logs" id="fmList"></pre>
+        <label>File path</label>
+        <input id="fmFile" placeholder="path/to/file.txt" />
+        <label>Content</label>
+        <textarea id="fmContent" rows="5" style="width:100%"></textarea>
+        <div class="row">
+          <button class="btn small" id="btnReadFile">Read</button>
+          <button class="btn small" id="btnWriteFile">Write</button>
+          <button class="btn small outline" id="btnDeleteFile">Delete</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Config & Security</h2>
+        <label>CSP Policy</label>
+        <input id="cspInput" placeholder="default-src 'self';" />
+        <div class="row">
+          <button class="btn small" id="btnSetCsp">Save CSP</button>
+        </div>
+        <label>Config Override (JSON)</label>
+        <textarea id="cfgOverride" rows="6" style="width:100%"></textarea>
+        <div class="row">
+          <button class="btn small" id="btnLoadCfg">Load</button>
+          <button class="btn small" id="btnSaveCfg">Save</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Backups (Zip)</h2>
+        <div class="row">
+          <button class="btn" id="btnCreateZip">Create Zip Backup</button>
+        </div>
+        <label>Keep how many zip backups?</label>
+        <input id="zipKeep" type="number" min="1" value="5" />
+        <div class="row">
+          <button class="btn outline" id="btnPruneZip">Prune</button>
+        </div>
+        <pre class="logs" id="zipStatus"></pre>
+      </div>
+      <div class="card">
+        <h2>System Snapshot</h2>
+        <div class="row">
+          <button class="btn" id="btnSnapshot">Refresh Snapshot</button>
+        </div>
+        <pre class="logs" id="snapshot"></pre>
       </div>
     </section>
   </main>

@@ -49,6 +49,17 @@ async function setMaint(enable) {
   await refresh();
 }
 
+async function exportSmp() {
+  window.location.href = '/maintenance/backups/export-smp';
+}
+
+async function importSmpUrl() {
+  const url = document.getElementById('importUrl').value.trim();
+  if (!url) { alert('Enter a URL to import.'); return; }
+  const res = await fetch('/maintenance/backups/import-smp-from-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+  alert(res.ok ? 'Import completed' : 'Import failed');
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnRolling').addEventListener('click', rollingRestart);
   document.getElementById('workers').addEventListener('click', (e) => {
@@ -58,22 +69,48 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btnEnableMaint').addEventListener('click', () => setMaint(true));
   document.getElementById('btnDisableMaint').addEventListener('click', () => setMaint(false));
+  const btnExport = document.getElementById('btnExportSmp');
+  if (btnExport) btnExport.addEventListener('click', exportSmp);
+  const btnImport = document.getElementById('btnImportSmp');
+  if (btnImport) btnImport.addEventListener('click', importSmpUrl);
   const btnReg = document.getElementById('btnRegisterHW');
   if (btnReg) btnReg.addEventListener('click', async () => {
-    const resp = await fetch('/maintenance/webauthn/register/start', { method: 'POST' });
-    const opts = await resp.json();
-    const cred = await navigator.credentials.create({ publicKey: opts });
-    const att = {
-      id: cred.id,
-      rawId: btoa(String.fromCharCode(...new Uint8Array(cred.rawId))),
-      type: cred.type,
-      response: {
-        clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(cred.response.clientDataJSON))),
-        attestationObject: btoa(String.fromCharCode(...new Uint8Array(cred.response.attestationObject)))
-      }
-    };
-    const vr = await fetch('/maintenance/webauthn/register/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(att) });
-    alert(vr.ok ? 'Hardware key registered.' : 'Registration failed');
+    try {
+      const resp = await fetch('/maintenance/webauthn/register/start', { method: 'POST' });
+      const opts = await resp.json();
+      const b64urlToUint8 = (s) => {
+        const pad = (str) => str + '==='.slice((str.length + 3) % 4);
+        const base64 = pad(s.replace(/-/g, '+').replace(/_/g, '/'));
+        const bin = atob(base64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return arr.buffer;
+      };
+      const b64ToUint8 = (s) => {
+        const bin = atob(s);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return arr.buffer;
+      };
+      const publicKey = { ...opts };
+      if (typeof publicKey.challenge === 'string') publicKey.challenge = b64urlToUint8(publicKey.challenge);
+      if (publicKey.user && typeof publicKey.user.id === 'string') publicKey.user.id = b64ToUint8(publicKey.user.id);
+      const cred = await navigator.credentials.create({ publicKey });
+      const att = {
+        id: cred.id,
+        rawId: btoa(String.fromCharCode(...new Uint8Array(cred.rawId))),
+        type: cred.type,
+        response: {
+          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(cred.response.clientDataJSON))),
+          attestationObject: btoa(String.fromCharCode(...new Uint8Array(cred.response.attestationObject)))
+        }
+      };
+      const vr = await fetch('/maintenance/webauthn/register/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(att) });
+      alert(vr.ok ? 'Hardware key registered.' : 'Registration failed');
+    } catch (e) {
+      console.error('HW register error', e);
+      alert('Registration failed: ' + (e && e.message ? e.message : 'Type error'));
+    }
   });
   const btnReset = document.getElementById('btnResetHW');
   if (btnReset) btnReset.addEventListener('click', async () => {

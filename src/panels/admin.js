@@ -18,10 +18,21 @@ import { sessionAuth, loginHandlers, hardwareRoutes } from '../utils/auth.js';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { getMaintenanceManager } from '../maintenance/manager.js';
+import { listUsers, addUser, removeUser } from '../utils/users.js';
+import fetch from 'node-fetch';
+import archiver from 'archiver';
+import multer from 'multer';
 
 export function createAdminPanel(watchdog) {
   const router = express.Router();
   const uiDir = path.join(config.paths.src, 'panels', 'public', 'admin');
+  const safeJoin = (base, target) => {
+    const resolved = path.resolve(base, target || '');
+    if (!resolved.startsWith(path.resolve(base))) {
+      throw new Error('Invalid path');
+    }
+    return resolved;
+  };
 
   // Login routes (HTML form)
   const { getLogin, postLogin, postLogout } = loginHandlers('admin', '/admin');
@@ -395,6 +406,158 @@ export function createAdminPanel(watchdog) {
   // Security headers configuration (simple)
   router.post('/security/headers/set', express.json(), (req, res) => { res.json({ status: 'success', applied: true }); });
 
+  // File manager: list directory within website
+  router.get('/files/list', (req, res) => {
+    try {
+      const dir = req.query.dir || '';
+      const root = config.staticSiteDir;
+      const target = safeJoin(root, dir);
+      if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) return res.status(404).json({ error: 'Directory not found' });
+      const entries = fs.readdirSync(target).map(name => {
+        const stat = fs.statSync(path.join(target, name));
+        return { name, isDir: stat.isDirectory(), size: stat.size, mtime: stat.mtime };
+      });
+      res.json({ status: 'success', entries, dir: path.relative(root, target) });
+    } catch (err) { logger.error('Files list error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // File manager: read file within website
+  router.post('/files/read', express.json(), (req, res) => {
+    try {
+      const { file } = req.body || {};
+      if (!file) return res.status(400).json({ error: 'file required' });
+      const target = safeJoin(config.staticSiteDir, file);
+      if (!fs.existsSync(target) || !fs.statSync(target).isFile()) return res.status(404).json({ error: 'File not found' });
+      const content = fs.readFileSync(target, 'utf8');
+      res.json({ status: 'success', content });
+    } catch (err) { logger.error('Files read error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // File manager: write file within website
+  router.post('/files/write', express.json({ limit: '2mb' }), (req, res) => {
+    try {
+      const { file, content } = req.body || {};
+      if (!file || typeof content !== 'string') return res.status(400).json({ error: 'file and content required' });
+      const target = safeJoin(config.staticSiteDir, file);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, content, 'utf8');
+      res.json({ status: 'success' });
+    } catch (err) { logger.error('Files write error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // File manager: delete file within website
+  router.post('/files/delete', express.json(), (req, res) => {
+    try {
+      const { file } = req.body || {};
+      if (!file) return res.status(400).json({ error: 'file required' });
+      const target = safeJoin(config.staticSiteDir, file);
+      if (!fs.existsSync(target)) return res.status(404).json({ error: 'File not found' });
+      const stat = fs.statSync(target);
+      if (stat.isDirectory()) fs.rmSync(target, { recursive: true, force: true });
+      else fs.unlinkSync(target);
+      res.json({ status: 'success' });
+    } catch (err) { logger.error('Files delete error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // Logs: download specific file
+  router.get('/logs/download/:logname', (req, res) => {
+    try {
+      const { logname } = req.params;
+      const logPath = safeJoin(config.paths.logs, logname);
+      if (!fs.existsSync(logPath)) return res.status(404).json({ error: 'Log file not found' });
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="${logname}"`);
+      res.send(fs.readFileSync(logPath, 'utf8'));
+    } catch (err) { logger.error('Log download error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // Logs: rotate a log file (rename with timestamp)
+  router.post('/logs/rotate', express.json(), (req, res) => {
+    try {
+      const { logname = 'app.log' } = req.body || {};
+      const src = safeJoin(config.paths.logs, logname);
+      if (!fs.existsSync(src)) return res.status(404).json({ error: 'Log file not found' });
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const dest = safeJoin(config.paths.logs, `${logname}.${ts}`);
+      fs.renameSync(src, dest);
+      fs.writeFileSync(src, '', 'utf8');
+      res.json({ status: 'success', rotatedTo: path.basename(dest) });
+    } catch (err) { logger.error('Log rotate error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // Backup: create zip archive of site and data
+  router.post('/backups/create-zip', async (req, res) => {
+    try {
+      const dir = path.join(config.paths.data, 'backups');
+      fs.mkdirSync(dir, { recursive: true });
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `backup-${ts}.zip`;
+      const filepath = path.join(dir, filename);
+      const output = fs.createWriteStream(filepath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      archive.on('error', (err) => { throw err; });
+      archive.pipe(output);
+      archive.directory(config.staticSiteDir, 'website');
+      archive.directory(config.paths.data, 'data');
+      archive.directory(config.maintenance.pageDir, 'maintenance');
+      await archive.finalize();
+      res.json({ status: 'success', file: filename });
+    } catch (err) { logger.error('Backup create zip error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // Backup: prune old zips
+  router.post('/backups/prune', express.json(), (req, res) => {
+    try {
+      const { keep = 5 } = req.body || {};
+      const dir = path.join(config.paths.data, 'backups');
+      if (!fs.existsSync(dir)) return res.json({ status: 'success', deleted: 0 });
+      const items = fs.readdirSync(dir).filter(f => f.startsWith('backup-')).sort().reverse();
+      const toDelete = items.slice(keep);
+      toDelete.forEach(name => fs.rmSync(path.join(dir, name), { recursive: true, force: true }));
+      res.json({ status: 'success', deleted: toDelete.length, kept: Math.min(keep, items.length) });
+    } catch (err) { logger.error('Backup prune error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // Config override: get current override file
+  router.get('/config/override/get', (req, res) => {
+    try {
+      const overrideFile = path.join(config.paths.data, 'config-override.json');
+      const cfg = fs.existsSync(overrideFile) ? JSON.parse(fs.readFileSync(overrideFile, 'utf8')) : {};
+      res.json({ status: 'success', config: cfg });
+    } catch (err) { logger.error('Config override get error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // Config override: set override values
+  router.post('/config/override/set', express.json({ limit: '512kb' }), (req, res) => {
+    try {
+      const { config: cfg } = req.body || {};
+      if (typeof cfg !== 'object' || cfg === null) return res.status(400).json({ error: 'config must be object' });
+      const overrideFile = path.join(config.paths.data, 'config-override.json');
+      fs.writeFileSync(overrideFile, JSON.stringify(cfg, null, 2), 'utf8');
+      res.json({ status: 'success' });
+    } catch (err) { logger.error('Config override set error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // Security: set CSP header policy stored on disk
+  router.post('/security/csp/set', express.json(), (req, res) => {
+    try {
+      const { policy } = req.body || {};
+      if (typeof policy !== 'string' || !policy.trim()) return res.status(400).json({ error: 'policy required' });
+      const file = path.join(config.paths.data, 'security-csp.txt');
+      fs.writeFileSync(file, policy.trim(), 'utf8');
+      res.json({ status: 'success' });
+    } catch (err) { logger.error('CSP set error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // System snapshot: runtime stats
+  router.get('/system/snapshot', (req, res) => {
+    try {
+      const mem = process.memoryUsage();
+      const cpu = process.cpuUsage();
+      res.json({ status: 'success', uptime: process.uptime(), memory: mem, cpu, pid: process.pid, platform: process.platform, node: process.version });
+    } catch (err) { logger.error('System snapshot error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
   // Additional 15+ useful admin features
   
   // 1. Environment variables viewer (filtered)
@@ -650,6 +813,106 @@ export function createAdminPanel(watchdog) {
 
   // 22. Session info (stateless JWT but can show recent activity)
   router.get('/sessions/info', (req, res) => {
+      // 23. User accounts: list
+      router.get('/accounts/:role/list', (req, res) => {
+        try {
+          const role = req.params.role === 'maintenance' ? 'maintenance' : 'admin';
+          res.json({ status: 'success', users: listUsers(role) });
+        } catch (err) { logger.error('Accounts list error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+      });
+
+      // 24. User accounts: add
+      router.post('/accounts/:role/add', express.json(), (req, res) => {
+        try {
+          const role = req.params.role === 'maintenance' ? 'maintenance' : 'admin';
+          const { username, password } = req.body || {};
+          if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+          const result = addUser(role, username, password);
+          if (!result.ok) return res.status(400).json({ error: result.error });
+          res.json({ status: 'success' });
+        } catch (err) { logger.error('Accounts add error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+      });
+
+      // 25. User accounts: remove
+      router.post('/accounts/:role/remove', express.json(), (req, res) => {
+        try {
+          const role = req.params.role === 'maintenance' ? 'maintenance' : 'admin';
+          const { username } = req.body || {};
+          if (!username) return res.status(400).json({ error: 'username required' });
+          const result = removeUser(role, username);
+          if (!result.ok) return res.status(400).json({ error: result.error });
+          res.json({ status: 'success' });
+        } catch (err) { logger.error('Accounts remove error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+      });
+
+      // 26. Export .smp backup (zip with website + settings + data)
+      router.get('/backups/export-smp', async (req, res) => {
+        try {
+          const projectName = process.env.PROJECT_NAME || 'project';
+          const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0,8) + '-' + new Date().toISOString().replace(/[:.T]/g, '').slice(9,15);
+          const filename = `${projectName}-backup-${ts}.smp`;
+          res.setHeader('Content-Type', 'application/octet-stream');
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+          const archive = archiver('zip', { zlib: { level: 9 } });
+          archive.on('error', (err) => { throw err; });
+          archive.pipe(res);
+
+          // Include website directory
+          archive.directory(config.staticSiteDir, 'website');
+          // Include data directory (settings, users, webauthn, etc.)
+          archive.directory(config.paths.data, 'data');
+          // Include config overrides
+          archive.file(path.join(config.paths.data, 'config-override.json'), { name: 'config-override.json' });
+          // Include maintenance page
+          archive.directory(config.maintenance.pageDir, 'maintenance');
+
+          await archive.finalize();
+        } catch (err) {
+          logger.error('Export SMP error', { error: err.message });
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      });
+
+      // 27. Import .smp from URL
+      router.post('/backups/import-smp-from-url', express.json(), async (req, res) => {
+        try {
+          const { url } = req.body || {};
+          if (!url) return res.status(400).json({ error: 'url required' });
+
+          const r = await fetch(url);
+          if (!r.ok) return res.status(400).json({ error: 'Failed to fetch smp file' });
+          const buf = await r.buffer();
+
+          // Save temp zip
+          const tmpZip = path.join(config.paths.data, 'tmp-import.zip');
+          fs.writeFileSync(tmpZip, buf);
+
+          // Extract zip
+          const unzip = await import('adm-zip');
+          const AdmZip = unzip.default;
+          const zip = new AdmZip(tmpZip);
+          const extractDir = path.join(config.paths.data, 'import-extract');
+          if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
+          fs.mkdirSync(extractDir, { recursive: true });
+          zip.extractAllTo(extractDir, true);
+
+          // Restore website
+          const websiteSrc = path.join(extractDir, 'website');
+          if (fs.existsSync(websiteSrc)) fs.cpSync(websiteSrc, config.staticSiteDir, { recursive: true });
+          // Restore data
+          const dataSrc = path.join(extractDir, 'data');
+          if (fs.existsSync(dataSrc)) fs.cpSync(dataSrc, config.paths.data, { recursive: true });
+          // Restore maintenance
+          const maintSrc = path.join(extractDir, 'maintenance');
+          if (fs.existsSync(maintSrc)) fs.cpSync(maintSrc, config.maintenance.pageDir, { recursive: true });
+
+          res.json({ status: 'success', message: 'Import completed' });
+        } catch (err) {
+          logger.error('Import SMP error', { error: err.message });
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      });
     try {
       res.json({
         status: 'success',
@@ -658,6 +921,35 @@ export function createAdminPanel(watchdog) {
         loginTime: req.user?.iat ? new Date(req.user.iat * 1000).toISOString() : null
       });
     } catch (err) { logger.error('Session info error', { error: err.message }); res.status(500).json({ error: 'Internal server error' }); }
+  });
+
+  // 28. Import .smp via file upload (multipart/form-data)
+  const upload = multer({ dest: path.join(config.paths.data, 'uploads') });
+  router.post('/backups/import-smp-upload', upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'file required' });
+      const tmpZip = req.file.path;
+
+      const unzip = await import('adm-zip');
+      const AdmZip = unzip.default;
+      const zip = new AdmZip(tmpZip);
+      const extractDir = path.join(config.paths.data, 'import-extract');
+      if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
+      fs.mkdirSync(extractDir, { recursive: true });
+      zip.extractAllTo(extractDir, true);
+
+      const websiteSrc = path.join(extractDir, 'website');
+      if (fs.existsSync(websiteSrc)) fs.cpSync(websiteSrc, config.staticSiteDir, { recursive: true });
+      const dataSrc = path.join(extractDir, 'data');
+      if (fs.existsSync(dataSrc)) fs.cpSync(dataSrc, config.paths.data, { recursive: true });
+      const maintSrc = path.join(extractDir, 'maintenance');
+      if (fs.existsSync(maintSrc)) fs.cpSync(maintSrc, config.maintenance.pageDir, { recursive: true });
+
+      res.json({ status: 'success', message: 'Upload import completed' });
+    } catch (err) {
+      logger.error('Upload Import SMP error', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
   });
 
   return router;

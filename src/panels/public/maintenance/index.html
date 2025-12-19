@@ -51,6 +51,18 @@
         <h2>Terminal</h2>
         <p class="hint">Interactive terminal is disabled by default. To enable, install node-pty and set ENABLE_OPS_TERMINAL=1. I can wire this up for you when ready.</p>
       </div>
+      <div class="card">
+        <h2>Backups</h2>
+        <p>Export and import .smp backups.</p>
+        <div class="row">
+          <button class="btn" id="btnExportSmp">Export .smp</button>
+        </div>
+        <label>Import from URL</label>
+        <input id="importUrl" placeholder="https://example.com/backup.smp" />
+        <div class="row">
+          <button class="btn" id="btnImportSmp">Import</button>
+        </div>
+      </div>
     </section>
   </main>
   <script src="/maintenance/assets/app.js"></script>

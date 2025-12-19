@@ -18,6 +18,7 @@ import os from 'os';
 import express from 'express';
 import { createStaticServer } from './static-server.js';
 import { createAdminPanel } from '../panels/admin.js';
+import { createExtendedAdminPanel } from '../panels/admin-extended.js';
 import { createMaintenancePanel } from '../panels/maintenance.js';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
@@ -202,6 +203,7 @@ export function createWorker(watchdog) {
    * Admin panel routes
    */
   app.use('/admin', createAdminPanel(watchdog));
+  app.use('/admin', createExtendedAdminPanel(watchdog));
 
   /**
    * Maintenance panel routes (ops only)

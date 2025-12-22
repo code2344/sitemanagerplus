@@ -10,7 +10,7 @@
  */
 
 import express from 'express';
-import { sessionAuth, requireAPIKeyOrAuth } from '../utils/auth.js';
+import { sessionAuth } from '../utils/auth.js';
 import { getMetricsCollector } from '../utils/metrics.js';
 import { getAPIKeyManager } from '../utils/api-keys.js';
 import { getPluginManager } from '../utils/plugin-system.js';

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metrics • SiteManager+ Admin</title>
+  <link rel="stylesheet" href="/admin/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SiteManager+ • Metrics</div>
+    <nav class="nav">
+      <a href="/admin">Dashboard</a>
+      <a href="/admin/metrics-ui" class="active">Metrics</a>
+      <a href="/admin/api-keys-ui">API Keys</a>
+      <a href="/admin/plugins-ui">Plugins</a>
+      <a href="/admin/logs-ui">Logs</a>
+      <a href="/admin/manual">Manual</a>
+      <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main class="page">
+    <div class="hero">
+      <h1>Metrics & Health Summary</h1>
+      <p>Fetch Prometheus-style metrics, get a readable summary, and reset counters when needed.</p>
+      <div class="toolbar">
+        <button class="btn" id="btnRefresh">Refresh summary</button>
+        <a class="btn outline" href="/admin/metrics" target="_blank" rel="noreferrer">Open Prometheus format</a>
+        <button class="btn outline" id="btnReset">Reset metrics</button>
+      </div>
+      <small id="status" class="note">Ready.</small>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Live Summary</h2>
+        <pre class="logs" id="metricsOut"></pre>
+      </div>
+      <div class="card">
+        <h2>What you'll find</h2>
+        <div class="callout">
+          <ul>
+            <li>Request totals, errors, and latency percentiles.</li>
+            <li>Per-worker memory and uptime.</li>
+            <li>Cache hit/miss counters.</li>
+            <li>Status code and method breakdowns.</li>
+          </ul>
+          <p class="note">Use Prometheus format for dashboards and alerting. Reset only in test/staging.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="/admin/assets/metrics.js"></script>
+</body>
+</html>

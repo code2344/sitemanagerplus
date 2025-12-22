@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Keys • SiteManager+ Admin</title>
+  <link rel="stylesheet" href="/admin/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SiteManager+ • API Keys</div>
+    <nav class="nav">
+      <a href="/admin">Dashboard</a>
+      <a href="/admin/metrics-ui">Metrics</a>
+      <a href="/admin/api-keys-ui" class="active">API Keys</a>
+      <a href="/admin/plugins-ui">Plugins</a>
+      <a href="/admin/logs-ui">Logs</a>
+      <a href="/admin/manual">Manual</a>
+      <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main class="page">
+    <div class="hero">
+      <h1>API Key Management</h1>
+      <p>Generate, list, and revoke API keys for automation with clear scopes and expirations.</p>
+      <div class="toolbar">
+        <button class="btn" id="btnLoad">Refresh list</button>
+      </div>
+      <small id="status" class="note">Ready.</small>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <h2>Generate a key</h2>
+        <label>Name</label>
+        <input id="name" placeholder="e.g. deploy-bot" />
+        <label>Scopes (comma or space separated)</label>
+        <input id="scopes" placeholder="read,write" value="read,write" />
+        <label>Expires in (days, optional)</label>
+        <input id="expires" type="number" min="1" placeholder="30" />
+        <div class="toolbar">
+          <button class="btn" id="btnGenerate">Generate key</button>
+        </div>
+        <div class="callout" id="newKeyBox" style="display:none">
+          <p><strong>New key</strong> — copy now, it will not be shown again.</p>
+          <pre class="logs" style="height:140px" id="newKey"></pre>
+        </div>
+      </div>
+      <div class="card">
+        <h2>How to use</h2>
+        <div class="callout">
+          <ul>
+            <li>Send <span class="mono">Authorization: Bearer &lt;key&gt;</span> with requests.</li>
+            <li>Share the secret once; rotate keys for each integration.</li>
+            <li>Use scopes to limit access (e.g., <span class="mono">read</span> only).</li>
+            <li>Revoke unused keys to keep the surface small.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-end">
+        <div>
+          <h2>Existing keys</h2>
+          <small class="note">IDs and metadata (secrets are hidden).</small>
+        </div>
+        <button class="btn outline" id="btnReloadTop">Reload</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Scopes</th>
+              <th>Status</th>
+              <th>Last used</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="keysBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+  <script src="/admin/assets/api-keys.js"></script>
+</body>
+</html>

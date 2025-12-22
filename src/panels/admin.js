@@ -33,6 +33,14 @@ export function createAdminPanel(watchdog) {
     }
     return resolved;
   };
+  const sendPage = (res, fileName) => {
+    const filePath = path.join(uiDir, fileName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('Page not found');
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(fs.readFileSync(filePath, 'utf8'));
+  };
 
   // Login routes (HTML form)
   const { getLogin, postLogin, postLogout } = loginHandlers('admin', '/admin');
@@ -52,6 +60,13 @@ export function createAdminPanel(watchdog) {
 
   // All admin routes require session or valid basic credentials
   router.use(sessionAuth('admin', '/admin'));
+
+  // Dedicated admin pages
+  router.get('/metrics-ui', (req, res) => sendPage(res, 'metrics.html'));
+  router.get('/api-keys-ui', (req, res) => sendPage(res, 'api-keys.html'));
+  router.get('/plugins-ui', (req, res) => sendPage(res, 'plugins.html'));
+  router.get('/logs-ui', (req, res) => sendPage(res, 'logs.html'));
+  router.get('/manual', (req, res) => sendPage(res, 'manual.html'));
 
   // Serve static assets for the Admin UI
   router.use('/assets', express.static(uiDir, { fallthrough: true }));

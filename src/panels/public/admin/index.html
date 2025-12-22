@@ -11,10 +11,11 @@
     <div class="brand">SiteManager+ • Admin</div>
     <nav class="nav">
       <a href="/admin" class="active">Dashboard</a>
-      <a href="/admin/metrics/summary" target="_blank">Metrics</a>
-      <a href="/admin/api-keys" target="_blank">API Keys</a>
-      <a href="/admin/plugins" target="_blank">Plugins</a>
-      <a href="/admin/logs/list" target="_blank">Logs (JSON)</a>
+      <a href="/admin/metrics-ui">Metrics</a>
+      <a href="/admin/api-keys-ui">API Keys</a>
+      <a href="/admin/plugins-ui">Plugins</a>
+      <a href="/admin/logs-ui">Logs</a>
+      <a href="/admin/manual">Manual</a>
       <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
     </nav>
   </header>
@@ -154,6 +155,18 @@
           <button class="btn" id="btnSnapshot">Refresh Snapshot</button>
         </div>
         <pre class="logs" id="snapshot"></pre>
+      </div>
+      <div class="card highlight">
+        <h2>Deep Tools & Manual</h2>
+        <p>Open the dedicated pages for richer controls, guided steps, and printable help.</p>
+        <div class="row wrap">
+          <a class="btn" href="/admin/metrics-ui">Metrics</a>
+          <a class="btn" href="/admin/api-keys-ui">API Keys</a>
+          <a class="btn" href="/admin/plugins-ui">Plugins</a>
+          <a class="btn" href="/admin/logs-ui">Logs Inspector</a>
+          <a class="btn outline" href="/admin/manual" target="_blank" rel="noreferrer">Admin Manual</a>
+        </div>
+        <small>Tip: keep this dashboard for quick status and use the dedicated pages for focused workflows.</small>
       </div>
     </section>
   </main>

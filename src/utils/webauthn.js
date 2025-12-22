@@ -55,7 +55,11 @@ export function getRegistrationOptions(role) {
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
     timeout: 60000,
     attestation: 'direct',
-    authenticatorSelection: { userVerification: 'preferred' },
+    authenticatorSelection: {
+      authenticatorAttachment: 'cross-platform',
+      residentKey: 'discouraged',
+      userVerification: 'preferred',
+    },
   };
 }
 

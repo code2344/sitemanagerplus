@@ -130,6 +130,7 @@ async function snapshot() {
   document.getElementById('snapshot').textContent = res.ok ? JSON.stringify(data, null, 2) : data.error || 'Failed';
 }
 
+
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnEnable').addEventListener('click', () => toggleMaintenance(true));
   document.getElementById('btnDisable').addEventListener('click', () => toggleMaintenance(false));

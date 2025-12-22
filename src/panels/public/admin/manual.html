@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" class="manual">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Manual • SiteManager+</title>
+  <link rel="stylesheet" href="/admin/assets/style.css">
+  <style>
+    body.manual { background: #fff; color: #111; }
+    body.manual .topbar { background: #f6f7fb; color: #111; border-color: #d0d6e6; }
+    body.manual .nav a { color: #24324d; }
+    body.manual .nav .active { color: #111; }
+    body.manual .card, body.manual .callout, body.manual .hero { background: #fff; color: #111; border-color: #d0d6e6; box-shadow: none; }
+    body.manual .hero { background: #f6f7fb; }
+    body.manual .logs { background: #f6f7fb; color: #111; border-color: #d0d6e6; }
+    body.manual a.btn { color: #fff; }
+    body.manual ul { margin: 0 0 10px 18px; }
+    body.manual .section { margin-top: 18px; }
+    @media print {
+      .topbar, .btn.print-btn { display: none; }
+      body.manual { background: #fff; color: #000; }
+      a { color: #000; text-decoration: none; }
+    }
+  </style>
+</head>
+<body class="manual">
+  <header class="topbar">
+    <div class="brand">SiteManager+ • Admin Manual</div>
+    <nav class="nav">
+      <a href="/admin">Dashboard</a>
+      <a href="/admin/metrics-ui">Metrics</a>
+      <a href="/admin/api-keys-ui">API Keys</a>
+      <a href="/admin/plugins-ui">Plugins</a>
+      <a href="/admin/logs-ui">Logs</a>
+      <a href="/admin/manual" class="active">Manual</a>
+    </nav>
+  </header>
+  <main class="page">
+    <div class="hero">
+      <h1>Printable Admin Manual</h1>
+      <p>How to operate SiteManager+ safely—dashboards, backups, security keys, metrics, plugins, and more.</p>
+      <button class="btn print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <div class="card">
+      <h2>Table of contents</h2>
+      <ol>
+        <li><a href="#login">Access & login</a></li>
+        <li><a href="#dashboard">Dashboard essentials</a></li>
+        <li><a href="#maintenance">Maintenance mode</a></li>
+        <li><a href="#backups">Backups (.smp and zip)</a></li>
+        <li><a href="#accounts">Account management</a></li>
+        <li><a href="#logs">Logs</a></li>
+        <li><a href="#files">File manager</a></li>
+        <li><a href="#security">Security & CSP</a></li>
+        <li><a href="#metrics">Metrics</a></li>
+        <li><a href="#apikeys">API keys</a></li>
+        <li><a href="#plugins">Plugins</a></li>
+      </ol>
+    </div>
+
+    <div class="card section" id="login">
+      <h2>Access & login</h2>
+      <ul>
+        <li>Open the admin panel at <span class="mono">/admin</span>.</li>
+        <li>Login with username/password, then register a hardware key (preferred cross-platform security key).</li>
+        <li>If locked out, generate a 6-digit OTP offline and call <span class="mono">Reset (OTP)</span>, then re-register the key.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="dashboard">
+      <h2>Dashboard essentials</h2>
+      <ul>
+        <li>Check system status, uptime, memory, and worker count.</li>
+        <li>Toggle maintenance mode with an optional reason and duration.</li>
+        <li>Quick view of recent logs and log rotation/download shortcuts.</li>
+        <li>Use “Deep Tools & Manual” to jump to dedicated pages for metrics, keys, plugins, logs, and this manual.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="maintenance">
+      <h2>Maintenance mode</h2>
+      <ul>
+        <li><strong>Enable</strong>: Provide a reason and optional duration (minutes). Users see the maintenance page.</li>
+        <li><strong>Disable</strong>: Returns the site to normal traffic.</li>
+        <li><strong>Maintenance page</strong>: Edit the maintenance HTML via the Config & Security card if needed.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="backups">
+      <h2>Backups (.smp and zip)</h2>
+      <ul>
+        <li><strong>.smp export</strong>: Click <em>Export .smp</em> to download a full backup (website + data + maintenance).</li>
+        <li><strong>.smp import</strong>: Import from URL or upload a .smp/.zip file; the system restores automatically.</li>
+        <li><strong>Zip backups</strong>: Create a zip snapshot and prune older zips by keeping the most recent N files.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="accounts">
+      <h2>Account management</h2>
+      <ul>
+        <li>List, add, or remove <em>admin</em> and <em>maintenance</em> accounts from the Accounts card.</li>
+        <li>Use strong passwords; pair accounts with hardware keys for best security.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="logs">
+      <h2>Logs</h2>
+      <ul>
+        <li>Use the Logs Inspector page to tail specific files and download full logs.</li>
+        <li>Rotate a log to archive it and start fresh.</li>
+        <li>Use the dashboard’s quick log view for a fast glance at recent entries.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="files">
+      <h2>File manager</h2>
+      <ul>
+        <li>List directories under <span class="mono">website/</span>, read files, write changes, or delete files.</li>
+        <li>Paths are constrained to the website root for safety.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="security">
+      <h2>Security & CSP</h2>
+      <ul>
+        <li>Set a Content-Security-Policy string and apply it site-wide.</li>
+        <li>Save or load a JSON config override for rapid tuning.</li>
+        <li>Security headers can be applied via the Security section.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="metrics">
+      <h2>Metrics</h2>
+      <ul>
+        <li>Open the Metrics page to view summaries (requests, errors, latency percentiles, worker health, cache stats).</li>
+        <li>Use the Prometheus-format link for dashboards and alerts.</li>
+        <li>Reset counters only in non-production environments.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="apikeys">
+      <h2>API keys</h2>
+      <ul>
+        <li>Generate keys with name, scopes, and optional expiration.</li>
+        <li>Copy the secret immediately—it is shown once.</li>
+        <li>Revoke unused keys to disable access without deleting records.</li>
+      </ul>
+    </div>
+
+    <div class="card section" id="plugins">
+      <h2>Plugins</h2>
+      <ul>
+        <li>View loaded plugins with version and enabled state.</li>
+        <li>Toggle a plugin to enable/disable its middleware, routes, and checks.</li>
+        <li>Place plugins under <span class="mono">plugins/&lt;name&gt;/index.js</span> exporting a <span class="mono">Plugin</span> subclass.</li>
+      </ul>
+    </div>
+  </main>
+</body>
+</html>

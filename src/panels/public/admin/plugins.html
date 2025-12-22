@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plugins • SiteManager+ Admin</title>
+  <link rel="stylesheet" href="/admin/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SiteManager+ • Plugins</div>
+    <nav class="nav">
+      <a href="/admin">Dashboard</a>
+      <a href="/admin/metrics-ui">Metrics</a>
+      <a href="/admin/api-keys-ui">API Keys</a>
+      <a href="/admin/plugins-ui" class="active">Plugins</a>
+      <a href="/admin/logs-ui">Logs</a>
+      <a href="/admin/manual">Manual</a>
+      <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main class="page">
+    <div class="hero">
+      <h1>Plugin Control</h1>
+      <p>See which plugins are loaded, check versions, and enable/disable them safely.</p>
+      <div class="toolbar">
+        <button class="btn" id="btnRefresh">Refresh list</button>
+      </div>
+      <small id="status" class="note">Ready.</small>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Loaded plugins</h2>
+        <div class="panel-list" id="pluginList"></div>
+      </div>
+      <div class="card">
+        <h2>How toggling works</h2>
+        <div class="callout">
+          <ul>
+            <li>Each toggle flips <span class="mono">enabled</span> on the plugin record.</li>
+            <li>Middleware and routes are only active when enabled.</li>
+            <li>Use logs to confirm behavior after toggling.</li>
+            <li>Reload the page to re-read plugin states.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="/admin/assets/plugins.js"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Logs Inspector • SiteManager+ Admin</title>
+  <link rel="stylesheet" href="/admin/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SiteManager+ • Logs</div>
+    <nav class="nav">
+      <a href="/admin">Dashboard</a>
+      <a href="/admin/metrics-ui">Metrics</a>
+      <a href="/admin/api-keys-ui">API Keys</a>
+      <a href="/admin/plugins-ui">Plugins</a>
+      <a href="/admin/logs-ui" class="active">Logs</a>
+      <a href="/admin/manual">Manual</a>
+      <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
+    </nav>
+  </header>
+  <main class="page">
+    <div class="hero">
+      <h1>Logs Inspector</h1>
+      <p>Pull recent lines, download full files, rotate safely, and list available logs.</p>
+      <div class="toolbar">
+        <button class="btn" id="btnFetch">Fetch selection</button>
+        <button class="btn outline" id="btnRotate">Rotate log</button>
+        <a class="btn outline" id="btnDownload" href="#" target="_blank" rel="noreferrer">Download</a>
+      </div>
+      <small id="status" class="note">Ready.</small>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <h2>Choose log</h2>
+        <label>Log file name</label>
+        <input id="logFile" value="app.log" />
+        <label>Lines to tail</label>
+        <input id="logLines" type="number" min="50" value="200" />
+        <div class="toolbar">
+          <button class="btn" id="btnFetchSecondary">Fetch</button>
+          <button class="btn outline" id="btnList">List log files</button>
+        </div>
+        <pre class="logs" id="logOut"></pre>
+      </div>
+      <div class="card">
+        <h2>Available logs</h2>
+        <div class="callout" id="logList">Click "List log files" to load.</div>
+        <p class="note">Download link updates to the file name above. Rotation keeps the current file and starts a fresh one.</p>
+      </div>
+    </div>
+  </main>
+  <script src="/admin/assets/logs.js"></script>
+</body>
+</html>

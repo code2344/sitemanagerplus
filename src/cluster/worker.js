@@ -23,6 +23,7 @@ import { createMaintenancePanel } from '../panels/maintenance.js';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { getMaintenanceManager } from '../maintenance/manager.js';
+import { getComingSoonManager } from '../maintenance/coming-soon.js';
 
 /**
  * Create and run worker HTTP server
@@ -167,10 +168,18 @@ export function createWorker(watchdog) {
    */
   app.use((req, res, next) => {
     const maintenance = getMaintenanceManager();
+    const comingSoon = getComingSoonManager();
 
-    // Check if route should bypass maintenance
+    // Check if route should bypass maintenance/coming-soon
     if (maintenance.shouldBypassMaintenance(req.path)) {
       return next();
+    }
+
+    // Coming soon mode takes priority
+    if (comingSoon.getState().enabled) {
+      res.status(503);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(comingSoon.getPage());
     }
 
     // Check if maintenance is enabled
@@ -306,10 +315,11 @@ export function createWorker(watchdog) {
   /**
    * Start the server
    */
-  const server = app.listen(config.port, () => {
+  const server = app.listen(config.port, config.host, () => {
     logger.info(`Worker ${workerId} listening`, {
       port: config.port,
-      address: `http://localhost:${config.port}`,
+      host: config.host,
+      address: `http://${config.host}:${config.port}`,
     });
   });
 

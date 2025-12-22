@@ -16,6 +16,14 @@ import path from 'path';
 import logger from '../utils/logger.js';
 import config from '../utils/config.js';
 
+// Read the auto-reload script once at startup
+let autoReloadScript = '';
+try {
+  autoReloadScript = fs.readFileSync(path.join(config.paths.src, 'cluster', 'auto-reload.js'), 'utf8');
+} catch (err) {
+  logger.warn('Failed to load auto-reload script', { error: err.message });
+}
+
 /**
  * Create static file server middleware
  */
@@ -146,8 +154,23 @@ export function createStaticServer() {
         res.setHeader('X-Frame-Options', 'SAMEORIGIN');
         res.setHeader('X-XSS-Protection', '1; mode=block');
 
-        // Send file
-        res.sendFile(filePath);
+        // Inject auto-reload script into HTML files
+        if (ext === '.html' && autoReloadScript) {
+          fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+              return res.status(500).json({ error: 'Internal server error' });
+            }
+            // Inject script before closing body tag
+            const injected = data.replace(
+              '</body>',
+              `<script>${autoReloadScript}</script>\n</body>`
+            );
+            res.send(injected);
+          });
+        } else {
+          // Send file normally
+          res.sendFile(filePath);
+        }
       });
     } catch (err) {
       logger.error('Error serving file', {

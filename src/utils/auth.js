@@ -261,8 +261,9 @@ function renderLoginPage(panelPath = '/', roleLabel = 'Admin', errorMsg = '') {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${roleLabel} Sign In</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:#0b1020;color:#e8eef9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-    .card{background:#121a33;border:1px solid #2a355a;border-radius:12px;max-width:360px;width:100%;padding:24px;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:#0b1020;color:#e8eef9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px}
+    .card{background:#121a33;border:1px solid #2a355a;border-radius:12px;width:100%;max-width:300px;padding:24px;box-shadow:0 8px 20px rgba(0,0,0,.35)}
     h1{font-size:20px;margin:0 0 16px}
     label{display:block;font-size:13px;margin:10px 0 6px;color:#a9b5d9}
     input{width:100%;padding:10px 12px;border:1px solid #3b4a79;border-radius:8px;background:#0b1020;color:#e8eef9}

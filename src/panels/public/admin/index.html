@@ -42,6 +42,15 @@
         <input id="duration" type="number" min="1" placeholder="e.g. 15" />
       </div>
       <div class="card">
+        <h2>Coming Soon Mode</h2>
+        <p>Show "Coming Soon" page to visitors while you build.</p>
+        <div class="kv"><span>Enabled</span><strong id="comingSoonEnabled">—</strong></div>
+        <div class="row">
+          <button class="btn" id="btnEnableCS">Enable</button>
+          <button class="btn outline" id="btnDisableCS">Disable</button>
+        </div>
+      </div>
+      <div class="card">
         <h2>Recent Logs</h2>
         <div class="row">
           <input id="logFile" value="app.log" />
@@ -93,7 +102,7 @@
           <button class="btn small" id="btnLoadAdmin">Load Admins</button>
           <button class="btn small" id="btnLoadMaint">Load Maintenance</button>
         </div>
-        <div class="row">
+        <div class="row wrap">
           <select id="accountRole">
             <option value="admin">admin</option>
             <option value="maintenance">maintenance</option>

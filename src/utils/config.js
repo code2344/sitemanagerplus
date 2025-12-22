@@ -25,6 +25,7 @@ const ROOT_DIR = path.join(__dirname, '../../');
 const config = {
   // Server Configuration
   port: parseInt(process.env.PORT || '3000', 10),
+  host: process.env.HOST || '0.0.0.0',
   nodeEnv: process.env.NODE_ENV || 'production',
   staticSiteDir: path.resolve(process.env.STATIC_SITE_DIR || path.join(ROOT_DIR, 'website')),
   

@@ -92,11 +92,9 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 
 label { font-size: 13px; color: var(--muted); display: block; margin: 8px 0 4px; }
 
-input, textarea, select {
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #3b4a79;
-	border-radius: 10px;
+.row input, .row select, .row textarea { flex: 1 1 140px; min-width: 140px; }
+.row button { flex: 0 0 auto; }
+
 	background: #0b1020;
 	color: var(--text);
 }

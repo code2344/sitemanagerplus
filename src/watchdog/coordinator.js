@@ -194,19 +194,15 @@ export class Watchdog {
       // Check overall system health
       const systemHealth = this.healthMonitor.getSystemHealth();
       if (systemHealth === HEALTH_STATUS.UNHEALTHY) {
-        const maintenance = getMaintenanceManager();
-        if (!maintenance.getState().enabled) {
-          logger.error('System health critical, entering maintenance mode');
-          maintenance.enable(
-            'System health degraded',
-            null,
-            'watchdog'
-          );
-          emailAlerts.alertSystemHealthDegraded(
-            systemHealth,
-            this.healthMonitor.getAllWorkerSummaries()
-          );
-        }
+        // Alert admins but keep serving (uptime at all costs)
+        logger.error('System health degraded', {
+          health: systemHealth,
+          workers: this.healthMonitor.getAllWorkerSummaries(),
+        });
+        emailAlerts.alertSystemHealthDegraded(
+          systemHealth,
+          this.healthMonitor.getAllWorkerSummaries()
+        );
       }
 
       // Check for auto-disable of maintenance mode

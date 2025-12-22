@@ -19,6 +19,17 @@ async function refresh() {
   const st = data.maintenance || {};
   document.getElementById('maintEnabled').textContent = st.enabled ? 'Yes' : 'No';
   document.getElementById('maintReason').textContent = st.reason || '—';
+
+  // Also refresh coming soon status
+  try {
+    const csRes = await fetch('/admin/coming-soon/status');
+    if (csRes.ok) {
+      const csData = await csRes.json();
+      document.getElementById('comingSoonEnabled').textContent = csData.comingSoon.enabled ? 'Yes' : 'No';
+    }
+  } catch (err) {
+    // Coming soon status endpoint may not exist in older versions
+  }
 }
 
 async function toggleMaintenance(enabled) {
@@ -31,6 +42,12 @@ async function toggleMaintenance(enabled) {
   } else {
     await fetch('/admin/maintenance/disable', { method: 'POST' });
   }
+  await refresh();
+}
+
+async function toggleComingSoon(enabled) {
+  const path = enabled ? '/admin/coming-soon/enable' : '/admin/coming-soon/disable';
+  await fetch(path, { method: 'POST' });
   await refresh();
 }
 
@@ -134,6 +151,10 @@ async function snapshot() {
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnEnable').addEventListener('click', () => toggleMaintenance(true));
   document.getElementById('btnDisable').addEventListener('click', () => toggleMaintenance(false));
+  const btnEnableCS = document.getElementById('btnEnableCS');
+  if (btnEnableCS) btnEnableCS.addEventListener('click', () => toggleComingSoon(true));
+  const btnDisableCS = document.getElementById('btnDisableCS');
+  if (btnDisableCS) btnDisableCS.addEventListener('click', () => toggleComingSoon(false));
   document.getElementById('btnFetchLogs').addEventListener('click', fetchLogs);
   const btnDlLog = document.getElementById('btnDownloadLog');
   if (btnDlLog) btnDlLog.addEventListener('click', downloadLog);

@@ -18,6 +18,7 @@ import { sessionAuth, loginHandlers, hardwareRoutes } from '../utils/auth.js';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import { getMaintenanceManager } from '../maintenance/manager.js';
+import { getComingSoonManager } from '../maintenance/coming-soon.js';
 import { listUsers, addUser, removeUser } from '../utils/users.js';
 import fetch from 'node-fetch';
 import archiver from 'archiver';
@@ -181,6 +182,74 @@ export function createAdminPanel(watchdog) {
       logger.error('Error disabling maintenance', { error: err.message });
       res.status(500).json({ error: 'Internal server error' });
     }
+  });
+
+  /**
+   * POST /admin/coming-soon/enable - Enable coming soon mode
+   */
+  router.post('/coming-soon/enable', (req, res) => {
+    try {
+      const cs = getComingSoonManager();
+      cs.enable();
+
+      logger.info('Coming soon mode enabled via admin', {
+        user: req.user.username,
+      });
+
+      res.json({
+        status: 'success',
+        comingSoon: cs.getState(),
+      });
+    } catch (err) {
+      logger.error('Error enabling coming soon', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /admin/coming-soon/disable - Disable coming soon mode
+   */
+  router.post('/coming-soon/disable', (req, res) => {
+    try {
+      const cs = getComingSoonManager();
+      cs.disable();
+
+      logger.info('Coming soon mode disabled via admin', {
+        user: req.user.username,
+      });
+
+      res.json({
+        status: 'success',
+        comingSoon: cs.getState(),
+      });
+    } catch (err) {
+      logger.error('Error disabling coming soon', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * GET /api/page-status - Check maintenance/coming-soon status (public endpoint)
+   * Used by client-side auto-reload script
+   */
+  router.get('/page-status', (req, res) => {
+    const maintenance = getMaintenanceManager();
+    const comingSoon = getComingSoonManager();
+    res.json({
+      maintenance: maintenance.getState().enabled,
+      comingSoon: comingSoon.getState().enabled,
+    });
+  });
+
+  /**
+   * GET /admin/coming-soon/status - Get coming soon status
+   */
+  router.get('/coming-soon/status', (req, res) => {
+    const cs = getComingSoonManager();
+    res.json({
+      status: 'success',
+      comingSoon: cs.getState(),
+    });
   });
 
   /**

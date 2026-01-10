@@ -13,6 +13,7 @@
       <a href="/maintenance" class="active">Dashboard</a>
       <a href="#terminal">Terminal (disabled)</a>
       <a href="/maintenance/logs/files" target="_blank">Log Files</a>
+      <a href="/maintenance/feedback-ui">Feedback</a>
       <form method="post" action="/maintenance/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
     </nav>
   </header>
@@ -35,6 +36,15 @@
         <div class="row">
           <button class="btn" id="btnEnableMaint">Enable</button>
           <button class="btn outline" id="btnDisableMaint">Disable</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Feedback Widget</h2>
+        <p>Allow users to submit feedback by typing "feedback".</p>
+        <div class="kv"><span>Enabled</span><strong id="feedbackEnabled">—</strong></div>
+        <div class="row">
+          <button class="btn" id="btnEnableFeedback">Enable</button>
+          <button class="btn outline" id="btnDisableFeedback">Disable</button>
         </div>
       </div>
       <div class="card">

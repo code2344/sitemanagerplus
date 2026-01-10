@@ -30,6 +30,21 @@ async function refresh() {
   } catch (err) {
     // Coming soon status endpoint may not exist in older versions
   }
+
+  // Refresh feedback state
+  await refreshFeedbackState();
+}
+
+async function refreshFeedbackState() {
+  try {
+    const res = await fetch('/admin/feedback/state');
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('feedbackEnabled').textContent = data.enabled ? 'Yes' : 'No';
+    }
+  } catch (err) {
+    console.error('Failed to refresh feedback state:', err);
+  }
 }
 
 async function toggleMaintenance(enabled) {
@@ -49,6 +64,15 @@ async function toggleComingSoon(enabled) {
   const path = enabled ? '/admin/coming-soon/enable' : '/admin/coming-soon/disable';
   await fetch(path, { method: 'POST' });
   await refresh();
+}
+
+async function toggleFeedback(enabled) {
+  if (enabled) {
+    await fetch('/admin/feedback/toggle', { method: 'POST' });
+  } else {
+    await fetch('/admin/feedback/toggle', { method: 'POST' });
+  }
+  await refreshFeedbackState();
 }
 
 async function fetchLogs() {
@@ -155,6 +179,10 @@ window.addEventListener('DOMContentLoaded', () => {
   if (btnEnableCS) btnEnableCS.addEventListener('click', () => toggleComingSoon(true));
   const btnDisableCS = document.getElementById('btnDisableCS');
   if (btnDisableCS) btnDisableCS.addEventListener('click', () => toggleComingSoon(false));
+  const btnEnableFeedback = document.getElementById('btnEnableFeedback');
+  if (btnEnableFeedback) btnEnableFeedback.addEventListener('click', () => toggleFeedback(true));
+  const btnDisableFeedback = document.getElementById('btnDisableFeedback');
+  if (btnDisableFeedback) btnDisableFeedback.addEventListener('click', () => toggleFeedback(false));
   document.getElementById('btnFetchLogs').addEventListener('click', fetchLogs);
   const btnDlLog = document.getElementById('btnDownloadLog');
   if (btnDlLog) btnDlLog.addEventListener('click', downloadLog);

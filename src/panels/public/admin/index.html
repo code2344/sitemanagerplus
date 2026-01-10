@@ -15,6 +15,7 @@
       <a href="/admin/api-keys-ui">API Keys</a>
       <a href="/admin/plugins-ui">Plugins</a>
       <a href="/admin/logs-ui">Logs</a>
+      <a href="/admin/feedback-ui">Feedback</a>
       <a href="/admin/manual">Manual</a>
       <form method="post" action="/admin/logout" style="display:inline"><button class="btn small" type="submit">Logout</button></form>
     </nav>
@@ -48,6 +49,15 @@
         <div class="row">
           <button class="btn" id="btnEnableCS">Enable</button>
           <button class="btn outline" id="btnDisableCS">Disable</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Feedback Widget</h2>
+        <p>Allow users to submit feedback by typing "feedback".</p>
+        <div class="kv"><span>Enabled</span><strong id="feedbackEnabled">—</strong></div>
+        <div class="row">
+          <button class="btn" id="btnEnableFeedback">Enable</button>
+          <button class="btn outline" id="btnDisableFeedback">Disable</button>
         </div>
       </div>
       <div class="card">
@@ -173,6 +183,7 @@
           <a class="btn" href="/admin/api-keys-ui">API Keys</a>
           <a class="btn" href="/admin/plugins-ui">Plugins</a>
           <a class="btn" href="/admin/logs-ui">Logs Inspector</a>
+          <a class="btn" href="/admin/feedback-ui">Feedback</a>
           <a class="btn outline" href="/admin/manual" target="_blank" rel="noreferrer">Admin Manual</a>
         </div>
         <small>Tip: keep this dashboard for quick status and use the dedicated pages for focused workflows.</small>

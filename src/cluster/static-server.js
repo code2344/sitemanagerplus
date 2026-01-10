@@ -15,6 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger.js';
 import config from '../utils/config.js';
+import * as feedbackManager from '../utils/feedback.js';
 
 // Read the auto-reload script once at startup
 let autoReloadScript = '';
@@ -46,19 +47,43 @@ export function createStaticServer() {
   }));
 
   /**
+   * Serve feedback widget script when enabled
+   */
+  router.get('/feedback-widget.js', (req, res) => {
+    // Check if feedback is enabled
+    if (!feedbackManager.isFeedbackEnabled()) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    try {
+      const widgetPath = path.join(config.paths.src, '..', 'website', 'feedback-widget.js');
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      // Avoid long-lived caching so updates to the widget are picked up immediately
+      res.setHeader('Cache-Control', 'no-store');
+      res.sendFile(widgetPath);
+    } catch (err) {
+      logger.error('Error serving feedback widget', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
    * Serve static files with proper headers
    */
   router.use((req, res, next) => {
     // Resolve the file path safely (prevent directory traversal)
     try {
-      const filePath = path.join(staticDir, decodeURIComponent(req.path));
-      const normalizedPath = path.normalize(filePath);
-      
+      const requestedPath = decodeURIComponent(req.path || '/');
+      // Use path.resolve with a prefixed dot so leading slashes do not escape staticDir
+      const normalizedPath = path.resolve(staticDir, '.' + requestedPath);
+      const staticRoot = path.normalize(staticDir + path.sep);
+      const normalizedRoot = path.normalize(staticDir);
+
       // Ensure the path is within staticDir
-      if (!normalizedPath.startsWith(path.normalize(staticDir))) {
+      if (!normalizedPath.startsWith(staticRoot) && normalizedPath !== normalizedRoot) {
         logger.warn('Path traversal attempt blocked', {
           originalPath: req.path,
-          attemptedPath: filePath,
+          attemptedPath: normalizedPath,
           ip: req.ip,
         });
         return res.status(403).json({ error: 'Forbidden' });
@@ -154,17 +179,30 @@ export function createStaticServer() {
         res.setHeader('X-Frame-Options', 'SAMEORIGIN');
         res.setHeader('X-XSS-Protection', '1; mode=block');
 
-        // Inject auto-reload script into HTML files
-        if (ext === '.html' && autoReloadScript) {
+        // Inject scripts into HTML files (auto-reload + feedback widget)
+        if (ext === '.html') {
           fs.readFile(filePath, 'utf8', (err, data) => {
             if (err) {
               return res.status(500).json({ error: 'Internal server error' });
             }
-            // Inject script before closing body tag
-            const injected = data.replace(
-              '</body>',
-              `<script>${autoReloadScript}</script>\n</body>`
-            );
+
+            let injected = data;
+
+            if (autoReloadScript) {
+              injected = injected.replace(
+                '</body>',
+                `<script>${autoReloadScript}</script>\n</body>`
+              );
+            }
+
+            if (feedbackManager.isFeedbackEnabled()) {
+              const feedbackWidgetScript = '<script src="/feedback-widget.js"></script>';
+              injected = injected.replace(
+                '</body>',
+                feedbackWidgetScript + '\n</body>'
+              );
+            }
+
             res.send(injected);
           });
         } else {

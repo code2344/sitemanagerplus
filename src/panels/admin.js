@@ -67,6 +67,7 @@ export function createAdminPanel(watchdog) {
   router.get('/api-keys-ui', (req, res) => sendPage(res, 'api-keys.html'));
   router.get('/plugins-ui', (req, res) => sendPage(res, 'plugins.html'));
   router.get('/logs-ui', (req, res) => sendPage(res, 'logs.html'));
+  router.get('/feedback-ui', (req, res) => sendPage(res, 'feedback.html'));
   router.get('/manual', (req, res) => sendPage(res, 'manual.html'));
 
   // Serve static assets for the Admin UI

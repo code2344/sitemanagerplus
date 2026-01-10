@@ -24,6 +24,9 @@ async function refresh() {
 
     const m = data?.maintenance || {};
     document.getElementById('mEnabled').textContent = m?.enabled ? 'Yes' : 'No';
+
+    // Refresh feedback state
+    await refreshFeedbackState();
   } catch (err) {
     console.error('Refresh error:', err);
   }
@@ -49,6 +52,27 @@ async function setMaint(enable) {
   await refresh();
 }
 
+async function toggleFeedback(enabled) {
+  if (enabled) {
+    await fetch('/maintenance/feedback/toggle', { method: 'POST' });
+  } else {
+    await fetch('/maintenance/feedback/toggle', { method: 'POST' });
+  }
+  await refreshFeedbackState();
+}
+
+async function refreshFeedbackState() {
+  try {
+    const res = await fetch('/maintenance/feedback/state');
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('feedbackEnabled').textContent = data.enabled ? 'Yes' : 'No';
+    }
+  } catch (err) {
+    console.error('Failed to refresh feedback state:', err);
+  }
+}
+
 async function exportSmp() {
   window.location.href = '/maintenance/backups/export-smp';
 }
@@ -69,6 +93,10 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btnEnableMaint').addEventListener('click', () => setMaint(true));
   document.getElementById('btnDisableMaint').addEventListener('click', () => setMaint(false));
+  const btnEnableFeedback = document.getElementById('btnEnableFeedback');
+  if (btnEnableFeedback) btnEnableFeedback.addEventListener('click', () => toggleFeedback(true));
+  const btnDisableFeedback = document.getElementById('btnDisableFeedback');
+  if (btnDisableFeedback) btnDisableFeedback.addEventListener('click', () => toggleFeedback(false));
   const btnExport = document.getElementById('btnExportSmp');
   if (btnExport) btnExport.addEventListener('click', exportSmp);
   const btnImport = document.getElementById('btnImportSmp');

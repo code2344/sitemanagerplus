@@ -17,6 +17,7 @@ import { getPluginManager } from '../utils/plugin-system.js';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 import * as loadTesting from '../utils/load-testing.js';
+import * as feedbackManager from '../utils/feedback.js';
 
 export function createExtendedAdminPanel(watchdog) {
   const router = express.Router();
@@ -169,6 +170,228 @@ export function createExtendedAdminPanel(watchdog) {
       });
     } catch (err) {
       logger.error('Error toggling plugin', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * GET /admin/feedback/list - List all feedback items
+   */
+  router.get('/feedback/list', (req, res) => {
+    try {
+      const filters = {};
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.type) filters.type = req.query.type;
+      if (req.query.page) filters.page = req.query.page;
+      if (req.query.submittedBy) filters.submittedBy = req.query.submittedBy;
+
+      const result = feedbackManager.listFeedback(filters);
+      if (!result.ok) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      // Add screenshot data for each feedback item
+      const feedbackWithScreenshots = result.feedback.map(item => ({
+        ...item,
+        screenshot: item.screenshotPath ? feedbackManager.getScreenshotBase64(item.screenshotPath) : null,
+      }));
+
+      res.json({
+        status: 'success',
+        feedback: feedbackWithScreenshots,
+      });
+    } catch (err) {
+      logger.error('Error listing feedback', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * GET /admin/feedback/state - Get feedback enabled state
+   */
+  router.get('/feedback/state', (req, res) => {
+    try {
+      const enabled = feedbackManager.isFeedbackEnabled();
+      res.json({
+        status: 'success',
+        enabled,
+      });
+    } catch (err) {
+      logger.error('Error getting feedback state', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /admin/feedback/toggle - Toggle feedback enabled state (admin only)
+   */
+  router.post('/feedback/toggle', express.json(), (req, res) => {
+    try {
+      // Only admins can toggle
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can toggle feedback' });
+      }
+
+      const result = feedbackManager.toggleFeedback();
+      if (!result.ok) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      logger.info('Feedback toggled', { enabled: result.enabled, by: req.user.username });
+      res.json({
+        status: 'success',
+        enabled: result.enabled,
+      });
+    } catch (err) {
+      logger.error('Error toggling feedback', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * GET /admin/feedback/:id - Get a specific feedback item
+   */
+  router.get('/feedback/:id', (req, res) => {
+    try {
+      const result = feedbackManager.getFeedback(req.params.id);
+      if (!result.ok) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      const feedback = result.feedback;
+      feedback.screenshot = feedback.screenshotPath ? feedbackManager.getScreenshotBase64(feedback.screenshotPath) : null;
+
+      res.json({
+        status: 'success',
+        feedback,
+      });
+    } catch (err) {
+      logger.error('Error getting feedback', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /admin/feedback/submit - Create new feedback item
+   */
+  router.post('/feedback/submit', express.json(), (req, res) => {
+    try {
+      const {
+        page,
+        element,
+        type,
+        message,
+        screenshot,
+        username,
+      } = req.body || {};
+
+      const result = feedbackManager.createFeedback({
+        page,
+        element,
+        type,
+        message,
+        screenshotBase64: screenshot,
+        submittedBy: username || 'anonymous',
+        submittedByRole: 'visitor',
+      });
+
+      if (!result.ok) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({
+        status: 'success',
+        id: result.id,
+        feedback: result.feedback,
+      });
+    } catch (err) {
+      logger.error('Error creating feedback', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /admin/feedback/:id/comment - Add comment to feedback
+   */
+  router.post('/feedback/:id/comment', express.json(), (req, res) => {
+    try {
+      const { message, username } = req.body || {};
+
+      if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const result = feedbackManager.addComment(req.params.id, {
+        message,
+        username: username || req.user.username || 'anonymous',
+        role: req.user.role || 'visitor',
+      });
+
+      if (!result.ok) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      res.json({
+        status: 'success',
+        comment: result.comment,
+      });
+    } catch (err) {
+      logger.error('Error adding comment', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /admin/feedback/:id/resolve - Resolve feedback (admin only)
+   */
+  router.post('/feedback/:id/resolve', express.json(), (req, res) => {
+    try {
+      // Only admins can resolve
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can resolve feedback' });
+      }
+
+      const { adminNotes } = req.body || {};
+
+      const result = feedbackManager.resolveFeedback(req.params.id, {
+        resolvedBy: req.user.username,
+        adminNotes,
+      });
+
+      if (!result.ok) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      res.json({
+        status: 'success',
+        feedback: result.feedback,
+      });
+    } catch (err) {
+      logger.error('Error resolving feedback', { error: err.message });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * DELETE /admin/feedback/:id - Delete feedback (admin only)
+   */
+  router.delete('/feedback/:id', (req, res) => {
+    try {
+      // Only admins can delete
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can delete feedback' });
+      }
+
+      const result = feedbackManager.deleteFeedback(req.params.id);
+      if (!result.ok) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      res.json({
+        status: 'success',
+      });
+    } catch (err) {
+      logger.error('Error deleting feedback', { error: err.message });
       res.status(500).json({ error: 'Internal server error' });
     }
   });
